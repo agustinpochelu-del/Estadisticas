@@ -71,16 +71,30 @@ if archivo_subido is not None:
         'Multiplicador Capital': multiplicador_capital
     }).dropna().round(2)
 
+    # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
+    st.sidebar.header("🔍 Filtros del Tablero")
+    
+    # Filtro de rango de años para acotar las tendencias temporales
+    lista_años = sorted(df_kpis.index.tolist())
+    rango_años = st.sidebar.slider(
+        "Seleccionar Período de Análisis:",
+        min_value=int(min(lista_años)),
+        max_value=int(max(lista_años)),
+        value=(int(min(lista_años)), int(max(lista_años)))
+    )
+    
+    # Filtrado del dataframe según las reglas del slider
+    df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
+    
+    # Selector de año puntual (acotado al rango seleccionado arriba)
+    años_disponibles = df_filtrado.index.sort_values(ascending=False).tolist()
+    año_seleccionado = st.sidebar.selectbox("📅 Ejercicio para análisis puntual:", años_disponibles)
+    
+    datos_año = df_filtrado.loc[año_seleccionado]
+    
     st.divider()
     
-    # Selector de año global
-    años_disponibles = df_kpis.index.sort_values(ascending=False).tolist()
-    año_seleccionado = st.selectbox("📅 Seleccionar Ejercicio Económico para análisis detallado:", años_disponibles)
-    datos_año = df_kpis.loc[año_seleccionado]
-    
-    st.divider()
-    
-    # --- 3. ESTRUCTURA DE SOLAPAS CON DETALLES DINÁMICOS ---
+    # --- 3. ESTRUCTURA DE SOLAPAS CON DATOS FILTRADOS ---
     tab1, tab2, tab3, tab4 = st.tabs([
         "🏛️ Estructura Patrimonial", 
         "💧 Liquidez y Corto Plazo", 
@@ -92,7 +106,6 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
-        # Detalles específicos del periodo elegido (Agregamos la "M" de millones)
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M")
         col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M")
@@ -102,16 +115,16 @@ if archivo_subido is not None:
         col_t1a, col_t1b = st.columns(2)
         with col_t1a:
             fig_pas = go.Figure()
-            fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
-            fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
-            fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
             fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
             st.plotly_chart(fig_pas, use_container_width=True)
             
         with col_t1b:
             fig_act = go.Figure()
-            fig_act.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
-            fig_act.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
+            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
+            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
             fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
             st.plotly_chart(fig_act, use_container_width=True)
             
@@ -132,8 +145,8 @@ if archivo_subido is not None:
         
         st.write("")
         fig_liq = go.Figure()
-        fig_liq.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
-        fig_liq.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
+        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
+        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
         fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified")
         st.plotly_chart(fig_liq, use_container_width=True)
@@ -155,9 +168,9 @@ if archivo_subido is not None:
         
         st.write("")
         fig_rent = go.Figure()
-        fig_rent.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['EBITDA Proxy'], name='Caja Operativa (EBITDA Proxy)', marker_color='#bcbd22', yaxis='y'))
-        fig_rent.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
-        fig_rent.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
+        fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA Proxy)', marker_color='#bcbd22', yaxis='y'))
+        fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
+        fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
         
         fig_rent.update_layout(
             title="Comparativo de Resultados Reales y Margen Operativo",
@@ -185,7 +198,7 @@ if archivo_subido is not None:
         
         st.write("")
         fig_dupont = go.Figure()
-        fig_dupont.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4)))
+        fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4)))
         fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified")
         st.plotly_chart(fig_dupont, use_container_width=True)
         
