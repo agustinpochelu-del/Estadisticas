@@ -37,6 +37,11 @@ if archivo_subido is not None:
     liquidez_corriente = activo_corriente / pasivo_corriente.replace(0, pd.NA)
     prueba_acida = (df_pivot.get('activo liquido', 0) + df_pivot.get('creditos comerciales', 0)) / pasivo_corriente.replace(0, pd.NA)
     
-    # PILAR 3: Rentabilidad y Generación de Caja
+   # PILAR 3: Rentabilidad y Generación de Caja
     ventas = df_pivot.get('ventas', 0)
-    resultado_neto = df_pivot.get('Resultado
+    resultado_neto = df_pivot.get('Resultado Neto', 0)
+    
+    # Proxy EBITDA = Resultado Neto + Amortizaciones + Intereses + Impuestos
+    ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
+    margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
+    margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
