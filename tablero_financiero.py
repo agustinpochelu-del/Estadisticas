@@ -48,15 +48,27 @@ if archivo_subido is not None:
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
 
-    # Consolidación en DataFrame
+    # Consolidación en DataFrame (Expresando valores monetarios en Millones para mejor visualización)
     df_kpis = pd.DataFrame({
-        'Activo Corriente': activo_corriente, 'Activo No Corriente': activo_no_corriente, 'Activo Total': activo_total,
-        'Pasivo Corriente': pasivo_corriente, 'Pasivo No Corriente': pasivo_no_corriente, 'Pasivo Total': pasivo_total,
-        'Patrimonio Neto': patrimonio_neto, 'Endeudamiento': endeudamiento,
-        'Liquidez Corriente': liquidez_corriente, 'Prueba Acida': prueba_acida, 'Capital de Trabajo': capital_trabajo,
-        'Ventas': ventas, 'Resultado Neto': resultado_neto, 'EBITDA Proxy': ebitda_proxy,
-        'Margen Neto (%)': margen_neto, 'Margen EBITDA (%)': margen_ebitda,
-        'ROE (%)': roe, 'Rotacion Activos': rotacion_activos, 'Multiplicador Capital': multiplicador_capital
+        'Activo Corriente': activo_corriente / 1e6, 
+        'Activo No Corriente': activo_no_corriente / 1e6, 
+        'Activo Total': activo_total / 1e6,
+        'Pasivo Corriente': pasivo_corriente / 1e6, 
+        'Pasivo No Corriente': pasivo_no_corriente / 1e6, 
+        'Pasivo Total': pasivo_total / 1e6,
+        'Patrimonio Neto': patrimonio_neto / 1e6, 
+        'Endeudamiento': endeudamiento,
+        'Liquidez Corriente': liquidez_corriente, 
+        'Prueba Acida': prueba_acida, 
+        'Capital de Trabajo': capital_trabajo / 1e6,
+        'Ventas': ventas / 1e6, 
+        'Resultado Neto': resultado_neto / 1e6, 
+        'EBITDA Proxy': ebitda_proxy / 1e6,
+        'Margen Neto (%)': margen_neto, 
+        'Margen EBITDA (%)': margen_ebitda,
+        'ROE (%)': roe, 
+        'Rotacion Activos': rotacion_activos, 
+        'Multiplicador Capital': multiplicador_capital
     }).dropna().round(2)
 
     st.divider()
@@ -80,10 +92,10 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
-        # Detalles específicos del periodo elegido
+        # Detalles específicos del periodo elegido (Agregamos la "M" de millones)
         col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f}")
-        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f}")
+        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M")
+        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M")
         col_m3.metric("Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}")
         
         st.write("")
@@ -93,20 +105,21 @@ if archivo_subido is not None:
             fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
             fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
             fig_pas.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
-            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", barmode='stack', hovermode="x unified")
+            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
             st.plotly_chart(fig_pas, use_container_width=True)
             
         with col_t1b:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
             fig_act.add_trace(go.Bar(x=df_kpis.index, y=df_kpis['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
-            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", barmode='stack', hovermode="x unified")
+            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
             st.plotly_chart(fig_act, use_container_width=True)
             
-        st.divider()
-        st.caption("**💡 Guía de interpretación al pie:**")
-        st.caption("- **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. Un ratio de 0.39 significa que los terceros financian el equivalente al 39% del patrimonio.")
-        st.caption("- **Estructura de Bloques:** El gráfico de Fondeo debe coordinar con el de Inversión. Idealmente, los activos a largo plazo (Bienes de Uso) deben financiarse con patrimonio neto o pasivos a largo plazo para no asfixiar la caja operativa.")
+        st.info("""
+        **💡 Guía de interpretación:**
+        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. Un ratio de 0.39 significa que los terceros financian el equivalente al 39% del patrimonio.
+        - **Estructura de Bloques:** El gráfico de Fondeo debe coordinar con el de Inversión. Idealmente, los activos a largo plazo (Bienes de Uso) deben financiarse con patrimonio neto o pasivos a largo plazo para no asfixiar la caja operativa.
+        """)
 
     # --- SOLAPA 2: LIQUIDEZ ---
     with tab2:
@@ -115,27 +128,28 @@ if archivo_subido is not None:
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
         col_m5.metric("Prueba Ácida (Líquida)", f"{datos_año['Prueba Acida']:.2f}")
-        col_m6.metric("Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f}")
+        col_m6.metric("Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M")
         
         st.write("")
         fig_liq = go.Figure()
         fig_liq.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
         fig_liq.add_trace(go.Scatter(x=df_kpis.index, y=df_kpis['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
-        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", hovermode="x unified")
+        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified")
         st.plotly_chart(fig_liq, use_container_width=True)
         
-        st.divider()
-        st.caption("**💡 Guía de interpretación al pie:**")
-        st.caption("- **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año. Si es menor a 1.0, el Capital de Trabajo se vuelve negativo, marcando un riesgo operativo de corto plazo.")
-        st.caption("- **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja, bancos y cuentas a cobrar rápidas.")
+        st.info("""
+        **💡 Guía de interpretación:**
+        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año. Si es menor a 1.0, el Capital de Trabajo se vuelve negativo, marcando un riesgo operativo de corto plazo.
+        - **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja, bancos y cuentas a cobrar rápidas.
+        """)
 
     # --- SOLAPA 3: RENTABILIDAD ---
     with tab3:
         st.subheader(f"Rendimiento Económico - Ejercicio {año_seleccionado}")
         
         col_m7, col_m8, col_m9 = st.columns(3)
-        col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f}")
+        col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M")
         col_m8.metric("Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%")
         col_m9.metric("Margen Neto Final", f"{datos_año['Margen Neto (%)']:.2f}%")
         
@@ -147,16 +161,17 @@ if archivo_subido is not None:
         
         fig_rent.update_layout(
             title="Comparativo de Resultados Reales y Margen Operativo",
-            yaxis=dict(title="Pesos Ajustados"),
+            yaxis=dict(title="Millones de Pesos"),
             yaxis2=dict(title="Margen (%)", overlaying='y', side='right', showgrid=False),
             barmode='group', hovermode="x unified"
         )
         st.plotly_chart(fig_rent, use_container_width=True)
         
-        st.divider()
-        st.caption("**💡 Guía de interpretación al pie:**")
-        st.caption("- **Caja Operativa (EBITDA Proxy):** Representa el resultado puramente operativo del negocio, antes de restarle los efectos de las amortizaciones, la estructura financiera (intereses) y el impuesto a las ganancias. Muestra el verdadero potencial del negocio para generar fondos.")
-        st.caption("- **Margen Neto Final:** Es el porcentaje de cada peso vendido que queda libre como utilidad neta para los socios tras cubrir absolutamente todos los costos, gastos, previsiones e impuestos del ejercicio.")
+        st.info("""
+        **💡 Guía de interpretación:**
+        - **Caja Operativa (EBITDA Proxy):** Representa el resultado puramente operativo del negocio, antes de restarle los efectos de las amortizaciones, la estructura financiera (intereses) y el impuesto a las ganancias. Muestra el verdadero potencial del negocio para generar fondos.
+        - **Margen Neto Final:** Es el porcentaje de cada peso vendido que queda libre como utilidad neta para los socios tras cubrir absolutamente todos los costos, gastos, previsiones e impuestos del ejercicio.
+        """)
 
     # --- SOLAPA 4: DUPONT ---
     with tab4:
@@ -174,12 +189,13 @@ if archivo_subido is not None:
         fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified")
         st.plotly_chart(fig_dupont, use_container_width=True)
         
-        st.divider()
-        st.caption("**💡 Guía de interpretación al pie:**")
-        st.caption("- **El Modelo DuPont** desarma el ROE para revelar la verdadera palanca del negocio. La fórmula dicta que el rendimiento de los socios surge de multiplicar tres frentes independientes:")
-        st.caption("  1. **Margen Neto (Rentabilidad):** Cuánto se gana por cada peso que se vende (gestión de precios y costos operativos).")
-        st.caption("  2. **Rotación de Activos (Eficiencia):** Cuántas veces se vende el equivalente al activo total en el año (productividad de las inversiones).")
-        st.caption("  3. **Multiplicador de Capital (Apalancamiento):** El grado en que la empresa se apalanca con deuda de terceros para multiplicar el rendimiento del capital propio.")
+        st.info("""
+        **💡 Guía de interpretación:**
+        - **El Modelo DuPont** desarma el ROE para revelar la verdadera palanca del negocio. La fórmula dicta que el rendimiento de los socios surge de multiplicar tres frentes independientes:
+          1. **Margen Neto (Rentabilidad):** Cuánto se gana por cada peso que se vende (gestión de precios y costos operativos).
+          2. **Rotación de Activos (Eficiencia):** Cuántas veces se vende el equivalente al activo total en el año (productividad de las inversiones).
+          3. **Multiplicador de Capital (Apalancamiento):** El grado en que la empresa se apalanca con deuda de terceros para multiplicar el rendimiento del capital propio.
+        """)
 
 else:
     st.info("👆 Por favor, subí el archivo Excel (.xlsx) para comenzar el análisis.")
