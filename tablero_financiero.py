@@ -9,12 +9,15 @@ st.set_page_config(page_title="Tablero Financiero y Patrimonial", layout="wide")
 st.title("📊 Análisis de Situación Patrimonial y Resultados")
 st.markdown("Cargá la base de datos histórica para visualizar la evolución del negocio.")
 
-# Widget para subir el archivo
-archivo_subido = st.file_uploader("Subí el archivo 'Balances Historicos.csv'", type=["csv"])
+# Widget para subir el archivo (ahora acepta xlsx)
+archivo_subido = st.file_uploader("Subí el archivo Excel de Balances (.xlsx)", type=["xlsx"])
 
 if archivo_subido is not None:
-    # 1. Ingesta y limpieza de datos
-    df_historico = pd.read_csv(archivo_subido)
+    # Ingesta de datos apuntando a la solapa específica
+    df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
+    
+    # El resto del código sigue exactamente igual...
+    df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
     
     # Pivotear los datos para tener los años en filas y las cuentas en columnas usando 'Saldos Ajustados'
     df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
