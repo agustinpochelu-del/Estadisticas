@@ -118,14 +118,14 @@ if archivo_subido is not None:
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
-            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
+            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=550)
             st.plotly_chart(fig_pas, use_container_width=True)
             
         with col_t1b:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
-            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified")
+            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=550)
             st.plotly_chart(fig_act, use_container_width=True)
             
         st.info("""
@@ -148,7 +148,7 @@ if archivo_subido is not None:
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
-        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified")
+        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=550)
         st.plotly_chart(fig_liq, use_container_width=True)
         
         st.info("""
@@ -181,7 +181,7 @@ if archivo_subido is not None:
                 title="Evolución de Ventas vs Margen Neto Final",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen Neto (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified"
+                barmode='group', hovermode="x unified", height=550
             )
             st.plotly_chart(fig_ventas_margen, use_container_width=True)
             
@@ -198,7 +198,7 @@ if archivo_subido is not None:
                 title="EBITDA vs Resultado Neto Real",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen EBITDA (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified"
+                barmode='group', hovermode="x unified", height=550
             )
             st.plotly_chart(fig_rent, use_container_width=True)
         
@@ -222,7 +222,7 @@ if archivo_subido is not None:
         st.write("")
         fig_dupont = go.Figure()
         fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4)))
-        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified")
+        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=550)
         st.plotly_chart(fig_dupont, use_container_width=True)
         
         st.info("""
