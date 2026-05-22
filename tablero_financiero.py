@@ -157,7 +157,7 @@ if archivo_subido is not None:
             x=['ESTRUCTURA DE INVERSIÓN<br>(ACTIVOS)'], y=[datos_año['Activo Corriente']],
             name='Activo Corriente', marker_color='#2ca02c',
             text=f"<b>ACTIVO CORRIENTE</b><br><br>$ {datos_año['Activo Corriente']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',  # <--- ACÁ ESTÁ LA CORRECCIÓN
+            textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
             hovertemplate="$ %{y:.2f} M<extra></extra>"
         ))
@@ -165,7 +165,7 @@ if archivo_subido is not None:
             x=['ESTRUCTURA DE INVERSIÓN<br>(ACTIVOS)'], y=[datos_año['Activo No Corriente']],
             name='Activo No Corriente', marker_color='#a1d99b',
             text=f"<b>ACTIVO NO CORRIENTE</b><br>(Bienes de Uso)<br><br>$ {datos_año['Activo No Corriente']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',  # <--- ACÁ ESTÁ LA CORRECCIÓN
+            textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
             hovertemplate="$ %{y:.2f} M<extra></extra>"
         ))
@@ -175,7 +175,7 @@ if archivo_subido is not None:
             x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Pasivo Corriente']],
             name='Pasivo Corriente', marker_color='#ff7f0e',
             text=f"<b>PASIVO CORRIENTE</b><br><br>$ {datos_año['Pasivo Corriente']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',  # <--- ACÁ ESTÁ LA CORRECCIÓN
+            textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
             hovertemplate="$ %{y:.2f} M<extra></extra>"
         ))
@@ -183,7 +183,7 @@ if archivo_subido is not None:
             x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']],
             name='Pasivo No Corriente', marker_color='#ffbb78',
             text=f"<b>PASIVO NO CORRIENTE</b><br><br>$ {datos_año['Pasivo No Corriente']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',  # <--- ACÁ ESTÁ LA CORRECCIÓN
+            textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
             hovertemplate="$ %{y:.2f} M<extra></extra>"
         ))
@@ -191,12 +191,12 @@ if archivo_subido is not None:
             x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Patrimonio Neto']],
             name='Patrimonio Neto', marker_color='#1f77b4',
             text=f"<b>PATRIMONIO NETO</b><br><br>$ {datos_año['Patrimonio Neto']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',  # <--- ACÁ ESTÁ LA CORRECCIÓN
+            textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
             hovertemplate="$ %{y:.2f} M<extra></extra>"
         ))
         
-        # Eliminación absoluta de elementos cartesianos y ejes
+        # Eliminación absoluta de elementos cartesianos y corrección del tickfont conflictivo
         fig_eq.update_layout(
             barmode='stack',
             showlegend=False,
@@ -204,7 +204,7 @@ if archivo_subido is not None:
             margin=dict(t=30, b=50, l=60, r=60),
             xaxis=dict(
                 showgrid=False, zeroline=False, showline=False,
-                tickfont=dict(size=14, bold=True, color='black')
+                tickfont=dict(size=14, color='black')  # -> ¡Acá quitamos el bold=True que generaba el error!
             ),
             yaxis=dict(
                 showgrid=False, zeroline=False, showline=False,
