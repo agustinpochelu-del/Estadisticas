@@ -27,7 +27,7 @@ if archivo_subido is not None:
     df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
     
     # --- 2. MOTOR DE CÁLCULOS ---
-    # Cuentas individuales para armar los Tooltips dinámicos (Expresados en Millones)
+    # Cuentas individuales para los Tooltips dinámicos (en Millones)
     act_liq = df_pivot.get('activo liquido', 0) / 1e6
     cred_com = df_pivot.get('creditos comerciales', 0) / 1e6
     b_cambio = df_pivot.get('Bienes de cambio', 0) / 1e6
@@ -83,7 +83,6 @@ if archivo_subido is not None:
         'ROE (%)': roe, 
         'Rotacion Activos': rotacion_activos, 
         'Multiplicador Capital': multiplicador_capital,
-        # Adicionales sueltos para los tooltips
         'Act Liquido': act_liq,
         'Cred Comerciales': cred_com,
         'Bienes Cambio': b_cambio,
@@ -122,7 +121,7 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
-        # Bloque A: KPIs solicitados de Activo con información de herramienta (help)
+        # KPIs de Activo con información detallada al pasar el mouse (help)
         st.markdown("##### 🧩 Componentes del Activo")
         col_a1, col_a2, col_a3 = st.columns(3)
         
@@ -143,7 +142,7 @@ if archivo_subido is not None:
         )
         
         st.write("")
-        # KPIs originales de Estructura de Financiación
+        # KPIs de Estructura de Financiación
         st.markdown("##### 🪙 Estructura Financiera")
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M")
@@ -151,29 +150,75 @@ if archivo_subido is not None:
         col_m3.metric("Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}")
         
         st.write("")
-        st.markdown(f"##### 📊 Gráficos de Balance - Ejercicio {año_seleccionado}")
+        st.markdown(f"##### 📋 Esquema Estructural del Balance (Ecuación Patrimonial)")
         
-        # Bloque B: Nueva representación gráfica de la Ecuación Patrimonial desdoblada
+        # NUEVO ESQUEMA DE BLOQUES PUROS (SIN EJES)
         fig_eq = go.Figure()
-        # Columna de la Izquierda: Activos
-        fig_eq.add_trace(go.Bar(x=['Inversión (Activos)', 'Inversión (Activos)'], y=[datos_año['Activo Corriente'], datos_año['Activo No Corriente']], 
-                                name='Activo Corriente', text=[f"AC: $ {datos_año['Activo Corriente']:.2f} M", f"ANC: $ {datos_año['Activo No Corriente']:.2f} M"],
-                                textposition='inside', marker_color='#2ca02c', hovertemplate="$ %{y:.2f} M<extra></extra>", legendgroup='inv'))
-        # Columna de la Derecha: Pasivo + PN
-        fig_eq.add_trace(go.Bar(x=['Financiamiento (P+PN)', 'Financiamiento (P+PN)', 'Financiamiento (P+PN)'], y=[datos_año['Pasivo Corriente'], datos_año['Pasivo No Corriente'], datos_año['Patrimonio Neto']],
-                                name='Estructura de Financiación', text=[f"Pas. Corr: $ {datos_año['Pasivo Corriente']:.2f} M", f"Pas. No Corr: $ {datos_año['Pasivo No Corriente']:.2f} M", f"PN: $ {datos_año['Patrimonio Neto']:.2f} M"],
-                                textposition='inside', marker_color='#ff7f0e', hovertemplate="$ %{y:.2f} M<extra></extra>", legendgroup='fin'))
         
+        # Bloques de la columna de la IZQUIERDA (Inversión / Activos)
+        fig_eq.add_trace(go.Bar(
+            x=['ESTRUCTURA DE INVERSIÓN<br>(ACTIVOS)'], y=[datos_año['Activo Corriente']],
+            name='Activo Corriente', marker_color='#2ca02c',
+            text=f"<b>ACTIVO CORRIENTE</b><br><br>$ {datos_año['Activo Corriente']:,.2f} M",
+            textposition='inside', insidetextanchor='center',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate="$ %{y:.2f} M<extra></extra>"
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['ESTRUCTURA DE INVERSIÓN<br>(ACTIVOS)'], y=[datos_año['Activo No Corriente']],
+            name='Activo No Corriente', marker_color='#a1d99b',
+            text=f"<b>ACTIVO NO CORRIENTE</b><br>(Bienes de Uso)<br><br>$ {datos_año['Activo No Corriente']:,.2f} M",
+            textposition='inside', insidetextanchor='center',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate="$ %{y:.2f} M<extra></extra>"
+        ))
+        
+        # Bloques de la columna de la DERECHA (Financiamiento / Pasivo + PN)
+        fig_eq.add_trace(go.Bar(
+            x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Pasivo Corriente']],
+            name='Pasivo Corriente', marker_color='#ff7f0e',
+            text=f"<b>PASIVO CORRIENTE</b><br><br>$ {datos_año['Pasivo Corriente']:,.2f} M",
+            textposition='inside', insidetextanchor='center',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate="$ %{y:.2f} M<extra></extra>"
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']],
+            name='Pasivo No Corriente', marker_color='#ffbb78',
+            text=f"<b>PASIVO NO CORRIENTE</b><br><br>$ {datos_año['Pasivo No Corriente']:,.2f} M",
+            textposition='inside', insidetextanchor='center',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate="$ %{y:.2f} M<extra></extra>"
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['ESTRUCTURA DE FINANCIAMIENTO<br>(PASIVO + PN)'], y=[datos_año['Patrimonio Neto']],
+            name='Patrimonio Neto', marker_color='#1f77b4',
+            text=f"<b>PATRIMONIO NETO</b><br><br>$ {datos_año['Patrimonio Neto']:,.2f} M",
+            textposition='inside', insidetextanchor='center',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate="$ %{y:.2f} M<extra></extra>"
+        ))
+        
+        # Eliminación absoluta de elementos cartesianos y ejes
         fig_eq.update_layout(
-            title=f"Ecuación Patrimonial Desdoblada: Activo ($ {datos_año['Activo Total']:.2f} M) = Pasivo + PN ($ {datos_año['Pasivo Total'] + datos_año['Patrimonio Neto']:.2f} M)",
-            yaxis_title="Millones de Pesos",
             barmode='stack',
             showlegend=False,
-            height=500
+            height=550,
+            margin=dict(t=30, b=50, l=60, r=60),
+            xaxis=dict(
+                showgrid=False, zeroline=False, showline=False,
+                tickfont=dict(size=14, bold=True, color='black')
+            ),
+            yaxis=dict(
+                showgrid=False, zeroline=False, showline=False,
+                showticklabels=False
+            ),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)'
         )
         
         st.plotly_chart(fig_eq, use_container_width=True)
-        if st.button("🔍 Ampliar Gráfico Ecuación Patrimonial", key="btn_eq", use_container_width=True):
+        if st.button("🔍 Ampliar Esquema del Balance", key="btn_eq", use_container_width=True):
             mostrar_grafico_ampliado(fig_eq)
             
         st.write("")
@@ -200,8 +245,8 @@ if archivo_subido is not None:
             
         st.info("""
         **💡 Guía de interpretación:**
-        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. 
-        - **Ecuación Patrimonial Desdoblada:** Permite verificar visualmente que el total de las aplicaciones de fondos (dónde se invirtió en activos corrientes y fijos) sea exactamente igual al total de los orígenes de fondos (financiamiento de terceros a corto/largo plazo más el capital propio).
+        - **Estructura del Balance:** Este bloque simula la representación gráfica clásica de la situación patrimonial. Permite contrastar de manera lineal si el Activo Corriente (bienes de corto plazo) es suficiente para cubrir las exigencias del Pasivo Corriente, y verificar que los Activos Fijos estén financiados genuinamente por recursos de largo plazo o Patrimonio Neto.
+        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios.
         """)
 
     # --- SOLAPA 2: LIQUIDEZ ---
@@ -275,9 +320,9 @@ if archivo_subido is not None:
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial.
-        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos.
+        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
+        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
         """)
 
     # --- SOLAPA 4: DUPONT ---
