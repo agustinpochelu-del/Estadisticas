@@ -26,33 +26,54 @@ if archivo_subido is not None:
     df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
     df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
     
-    # --- 2. MOTOR DE CÁLCULOS ---
-    # Cuentas individuales para los Tooltips dinámicos (en Millones)
-    act_liq = df_pivot.get('activo liquido', 0) / 1e6
-    cred_com = df_pivot.get('creditos comerciales', 0) / 1e6
-    b_cambio = df_pivot.get('Bienes de cambio', 0) / 1e6
-    b_uso = df_pivot.get('Bienes de Uso', 0) / 1e6
+    # --- NUEVO: LECTURA DINÁMICA DE LA HOJA DE RUBROS GRALES ---
+    # Leemos la hoja completa sin encabezados para encontrar la tabla
+    df_rubros_raw = pd.read_excel(archivo_subido, sheet_name="Rubros Grales", header=None)
     
+    # Buscamos la fila donde arranca el mapeo (donde dice 'Sub Rubro')
+    try:
+        fila_inicio = df_rubros_raw[df_rubros_raw[0] == 'Sub Rubro'].index[0]
+        df_mapeo = df_rubros_raw.iloc[fila_inicio+1:].dropna(subset=[0, 1]).copy()
+        df_mapeo.columns = ['Sub Rubro', 'Cuenta']
+        # Limpiamos los espacios en blanco por las dudas
+        df_mapeo['Sub Rubro'] = df_mapeo['Sub Rubro'].astype(str).str.strip()
+        df_mapeo['Cuenta'] = df_mapeo['Cuenta'].astype(str).str.strip()
+    except Exception as e:
+        st.error("⚠️ No se encontró la tabla de mapeo ('Sub Rubro' y 'Cuenta') en la hoja 'Rubros Grales'.")
+        st.stop()
+
+    # Función motor para sumar dinámicamente las cuentas basándose exclusivamente en tu mapeo de Excel
+    def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
+        # Filtramos las cuentas asociadas ignorando mayúsculas/minúsculas
+        cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
+        cuentas_existentes = [c for c in cuentas if c in df_datos.columns]
+        if not cuentas_existentes:
+            return pd.Series(0, index=df_datos.index)
+        return df_datos[cuentas_existentes].sum(axis=1)
+
+    # --- 2. CÁLCULOS 100% DINÁMICOS ---
     # PILAR 1: Patrimonio y Estructura
-    activo_corriente = df_pivot.get('activo liquido', 0) + df_pivot.get('creditos comerciales', 0) + df_pivot.get('Bienes de cambio', 0)
-    activo_no_corriente = df_pivot.get('Bienes de Uso', 0)
+    activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
+    activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
     
-    pasivo_corriente = df_pivot.get('Deudas comerciales', 0) + df_pivot.get('Otros Pasivos', 0)
-    pasivo_no_corriente = df_pivot.get('Pasivo no corriente', 0)
+    pasivo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo Corriente')
+    pasivo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo no Corriente')
     pasivo_total = pasivo_corriente + pasivo_no_corriente
     
-    patrimonio_neto = df_pivot.get('patrimonio neto', 0)
+    patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
     # PILAR 2: Liquidez
     liquidez_corriente = activo_corriente / pasivo_corriente.replace(0, pd.NA)
-    prueba_acida = (df_pivot.get('activo liquido', 0) + df_pivot.get('creditos comerciales', 0)) / pasivo_corriente.replace(0, pd.NA)
+    # Prueba Acida = Activo Corriente sin Bienes de Cambio
+    bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
+    prueba_acida = (activo_corriente - bienes_de_cambio) / pasivo_corriente.replace(0, pd.NA)
     capital_trabajo = activo_corriente - pasivo_corriente
     
     # PILAR 3: Rentabilidad y Caja Operativa
-    ventas = df_pivot.get('ventas', 0)
-    resultado_neto = df_pivot.get('Resultado Neto', 0)
+    ventas = df_pivot.get('ventas', pd.Series(0, index=df_pivot.index))
+    resultado_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
@@ -62,7 +83,7 @@ if archivo_subido is not None:
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
 
-    # Consolidación en DataFrame
+    # Consolidación en DataFrame (Expresando valores monetarios en Millones)
     df_kpis = pd.DataFrame({
         'Activo Corriente': activo_corriente / 1e6, 
         'Activo No Corriente': activo_no_corriente / 1e6, 
@@ -82,12 +103,8 @@ if archivo_subido is not None:
         'Margen EBITDA (%)': margen_ebitda,
         'ROE (%)': roe, 
         'Rotacion Activos': rotacion_activos, 
-        'Multiplicador Capital': multiplicador_capital,
-        'Act Liquido': act_liq,
-        'Cred Comerciales': cred_com,
-        'Bienes Cambio': b_cambio,
-        'Bienes Uso': b_uso
-    }).dropna().round(2)
+        'Multiplicador Capital': multiplicador_capital
+    }).dropna(how='all').round(2)
 
     # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
     st.sidebar.header("🔍 Filtros del Tablero")
@@ -121,30 +138,39 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
+        # --- GENERADOR DINÁMICO DE TOOLTIPS (SE ALIMENTA DEL EXCEL) ---
+        def generar_tooltip(sub_rubro_nombre):
+            cuentas = df_mapeo[df_mapeo['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
+            texto = "Subcuentas integrantes:\n"
+            for c in cuentas:
+                if c in df_pivot.columns:
+                    try:
+                        val = df_pivot[c].loc[año_seleccionado] / 1e6
+                        if val != 0:
+                            texto += f"- {c}: $ {val:,.2f} M\n"
+                    except:
+                        pass
+            if texto == "Subcuentas integrantes:\n":
+                texto += "- Sin movimientos este año"
+            return texto
+
         st.markdown("##### 🧩 Componentes del Activo")
         col_a1, col_a2, col_a3 = st.columns(3)
         
-        col_a1.metric(
-            label="Activo Total", 
-            value=f"$ {datos_año['Activo Total']:,.2f} M",
-            help=f"Composición:\n- Corriente: $ {datos_año['Activo Corriente']:,.2f} M\n- No Corriente: $ {datos_año['Activo No Corriente']:,.2f} M"
-        )
-        col_a2.metric(
-            label="Activo Corriente", 
-            value=f"$ {datos_año['Activo Corriente']:,.2f} M",
-            help=f"Subcuentas integrantes:\n- Activo Líquido: $ {datos_año['Act Liquido']:,.2f} M\n- Créditos Comerciales: $ {datos_año['Cred Comerciales']:,.2f} M\n- Bienes de Cambio: $ {datos_año['Bienes Cambio']:,.2f} M"
-        )
-        col_a3.metric(
-            label="Activo No Corriente", 
-            value=f"$ {datos_año['Activo No Corriente']:,.2f} M",
-            help=f"Subcuentas integrantes:\n- Bienes de Uso: $ {datos_año['Bienes Uso']:,.2f} M"
-        )
+        help_at = f"Composición:\n- Corriente: $ {datos_año['Activo Corriente']:,.2f} M\n- No Corriente: $ {datos_año['Activo No Corriente']:,.2f} M"
+        
+        col_a1.metric("Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", help=help_at)
+        col_a2.metric("Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", help=generar_tooltip('Activo Corriente'))
+        col_a3.metric("Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", help=generar_tooltip('Activo No Corriente'))
         
         st.write("")
         st.markdown("##### 🪙 Estructura Financiera")
         col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M")
-        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M")
+        
+        # Agregamos tooltips dinámicos también para el Pasivo para dejarlo recontra completo
+        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", help=generar_tooltip('Patrimonio Neto'))
+        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M", 
+                      help=f"Composición:\n- Corto Plazo: $ {datos_año['Pasivo Corriente']:,.2f} M\n- Largo Plazo: $ {datos_año['Pasivo No Corriente']:,.2f} M")
         col_m3.metric("Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}")
         
         st.write("")
@@ -202,7 +228,7 @@ if archivo_subido is not None:
             bargap=0,  
             showlegend=False,
             height=600,
-            margin=dict(t=30, b=50, l=150, r=150), # Ajuste de márgenes para que parezca un cuadrado centrado
+            margin=dict(t=30, b=50, l=150, r=150),
             xaxis=dict(
                 showgrid=False, zeroline=False, showline=False,
                 tickfont=dict(size=16, color='black')
