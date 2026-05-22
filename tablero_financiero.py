@@ -10,7 +10,6 @@ st.set_page_config(page_title="Tablero de Análisis Integral", layout="wide")
 # --- FUNCIÓN DE PANTALLA COMPLETA (POP-UP) ---
 @st.dialog("🔍 Vista Ampliada del Análisis", width="large")
 def mostrar_grafico_ampliado(figura):
-    # Clonamos el gráfico y le damos altura extra para la vista XL
     fig_xl = go.Figure(figura)
     fig_xl.update_layout(height=650)
     st.plotly_chart(fig_xl, use_container_width=True)
@@ -28,6 +27,12 @@ if archivo_subido is not None:
     df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
     
     # --- 2. MOTOR DE CÁLCULOS ---
+    # Cuentas individuales para armar los Tooltips dinámicos (Expresados en Millones)
+    act_liq = df_pivot.get('activo liquido', 0) / 1e6
+    cred_com = df_pivot.get('creditos comerciales', 0) / 1e6
+    b_cambio = df_pivot.get('Bienes de cambio', 0) / 1e6
+    b_uso = df_pivot.get('Bienes de Uso', 0) / 1e6
+    
     # PILAR 1: Patrimonio y Estructura
     activo_corriente = df_pivot.get('activo liquido', 0) + df_pivot.get('creditos comerciales', 0) + df_pivot.get('Bienes de cambio', 0)
     activo_no_corriente = df_pivot.get('Bienes de Uso', 0)
@@ -57,7 +62,7 @@ if archivo_subido is not None:
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
 
-    # Consolidación en DataFrame (Expresando valores monetarios en Millones para mejor visualización)
+    # Consolidación en DataFrame
     df_kpis = pd.DataFrame({
         'Activo Corriente': activo_corriente / 1e6, 
         'Activo No Corriente': activo_no_corriente / 1e6, 
@@ -77,13 +82,17 @@ if archivo_subido is not None:
         'Margen EBITDA (%)': margen_ebitda,
         'ROE (%)': roe, 
         'Rotacion Activos': rotacion_activos, 
-        'Multiplicador Capital': multiplicador_capital
+        'Multiplicador Capital': multiplicador_capital,
+        # Adicionales sueltos para los tooltips
+        'Act Liquido': act_liq,
+        'Cred Comerciales': cred_com,
+        'Bienes Cambio': b_cambio,
+        'Bienes Uso': b_uso
     }).dropna().round(2)
 
     # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
     st.sidebar.header("🔍 Filtros del Tablero")
     
-    # Filtro de rango de años
     lista_años = sorted(df_kpis.index.tolist())
     rango_años = st.sidebar.slider(
         "Seleccionar Período de Análisis:",
@@ -113,20 +122,69 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
+        # Bloque A: KPIs solicitados de Activo con información de herramienta (help)
+        st.markdown("##### 🧩 Componentes del Activo")
+        col_a1, col_a2, col_a3 = st.columns(3)
+        
+        col_a1.metric(
+            label="Activo Total", 
+            value=f"$ {datos_año['Activo Total']:,.2f} M",
+            help=f"Composición:\n- Corriente: $ {datos_año['Activo Corriente']:,.2f} M\n- No Corriente: $ {datos_año['Activo No Corriente']:,.2f} M"
+        )
+        col_a2.metric(
+            label="Activo Corriente", 
+            value=f"$ {datos_año['Activo Corriente']:,.2f} M",
+            help=f"Subcuentas integrantes:\n- Activo Líquido: $ {datos_año['Act Liquido']:,.2f} M\n- Créditos Comerciales: $ {datos_año['Cred Comerciales']:,.2f} M\n- Bienes de Cambio: $ {datos_año['Bienes Cambio']:,.2f} M"
+        )
+        col_a3.metric(
+            label="Activo No Corriente", 
+            value=f"$ {datos_año['Activo No Corriente']:,.2f} M",
+            help=f"Subcuentas integrantes:\n- Bienes de Uso: $ {datos_año['Bienes Uso']:,.2f} M"
+        )
+        
+        st.write("")
+        # KPIs originales de Estructura de Financiación
+        st.markdown("##### 🪙 Estructura Financiera")
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M")
         col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M")
         col_m3.metric("Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}")
         
         st.write("")
+        st.markdown(f"##### 📊 Gráficos de Balance - Ejercicio {año_seleccionado}")
+        
+        # Bloque B: Nueva representación gráfica de la Ecuación Patrimonial desdoblada
+        fig_eq = go.Figure()
+        # Columna de la Izquierda: Activos
+        fig_eq.add_trace(go.Bar(x=['Inversión (Activos)', 'Inversión (Activos)'], y=[datos_año['Activo Corriente'], datos_año['Activo No Corriente']], 
+                                name='Activo Corriente', text=[f"AC: $ {datos_año['Activo Corriente']:.2f} M", f"ANC: $ {datos_año['Activo No Corriente']:.2f} M"],
+                                textposition='inside', marker_color='#2ca02c', hovertemplate="$ %{y:.2f} M<extra></extra>", legendgroup='inv'))
+        # Columna de la Derecha: Pasivo + PN
+        fig_eq.add_trace(go.Bar(x=['Financiamiento (P+PN)', 'Financiamiento (P+PN)', 'Financiamiento (P+PN)'], y=[datos_año['Pasivo Corriente'], datos_año['Pasivo No Corriente'], datos_año['Patrimonio Neto']],
+                                name='Estructura de Financiación', text=[f"Pas. Corr: $ {datos_año['Pasivo Corriente']:.2f} M", f"Pas. No Corr: $ {datos_año['Pasivo No Corriente']:.2f} M", f"PN: $ {datos_año['Patrimonio Neto']:.2f} M"],
+                                textposition='inside', marker_color='#ff7f0e', hovertemplate="$ %{y:.2f} M<extra></extra>", legendgroup='fin'))
+        
+        fig_eq.update_layout(
+            title=f"Ecuación Patrimonial Desdoblada: Activo ($ {datos_año['Activo Total']:.2f} M) = Pasivo + PN ($ {datos_año['Pasivo Total'] + datos_año['Patrimonio Neto']:.2f} M)",
+            yaxis_title="Millones de Pesos",
+            barmode='stack',
+            showlegend=False,
+            height=500
+        )
+        
+        st.plotly_chart(fig_eq, use_container_width=True)
+        if st.button("🔍 Ampliar Gráfico Ecuación Patrimonial", key="btn_eq", use_container_width=True):
+            mostrar_grafico_ampliado(fig_eq)
+            
+        st.write("")
+        st.markdown("##### 📅 Evolución Histórica de Estructuras")
         col_t1a, col_t1b = st.columns(2)
         with col_t1a:
             fig_pas = go.Figure()
-            # Agregamos formato estricto a las etiquetas emergentes (hovertemplate)
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4', hovertemplate="$ %{y:.2f} M<extra></extra>"))
-            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
+            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=400)
             st.plotly_chart(fig_pas, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Fondeo", key="btn_pas", use_container_width=True):
                 mostrar_grafico_ampliado(fig_pas)
@@ -135,7 +193,7 @@ if archivo_subido is not None:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b', hovertemplate="$ %{y:.2f} M<extra></extra>"))
-            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
+            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=400)
             st.plotly_chart(fig_act, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
                 mostrar_grafico_ampliado(fig_act)
@@ -143,7 +201,7 @@ if archivo_subido is not None:
         st.info("""
         **💡 Guía de interpretación:**
         - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. 
-        - **Estructura de Bloques:** El gráfico de Fondeo debe coordinar con el de Inversión. Idealmente, los activos a largo plazo (Bienes de Uso) deben financiarse con patrimonio neto o pasivos a largo plazo para no asfixiar la caja operativa.
+        - **Ecuación Patrimonial Desdoblada:** Permite verificar visualmente que el total de las aplicaciones de fondos (dónde se invirtió en activos corrientes y fijos) sea exactamente igual al total de los orígenes de fondos (financiamiento de terceros a corto/largo plazo más el capital propio).
         """)
 
     # --- SOLAPA 2: LIQUIDEZ ---
@@ -157,7 +215,6 @@ if archivo_subido is not None:
         
         st.write("")
         fig_liq = go.Figure()
-        # Formato de dos decimales para los índices de liquidez
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf'), hovertemplate="%{y:.2f}<extra></extra>"))
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot'), hovertemplate="%{y:.2f}<extra></extra>"))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
@@ -188,7 +245,6 @@ if archivo_subido is not None:
         with col_t3a:
             st.markdown("##### 🛒 Volumen de Ventas vs Eficiencia (ROS)")
             fig_ventas = go.Figure()
-            # Aplicamos pesos a las barras y porcentaje a la línea
             fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3), hovertemplate="%{y:.2f}%<extra></extra>"))
             fig_ventas.update_layout(
@@ -219,9 +275,9 @@ if archivo_subido is not None:
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
-        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
+        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial.
+        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos.
         """)
 
     # --- SOLAPA 4: DUPONT ---
