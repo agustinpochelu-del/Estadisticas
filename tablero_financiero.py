@@ -174,10 +174,12 @@ if archivo_subido is not None:
     with tab3:
         st.subheader(f"Rendimiento Económico - Ejercicio {año_seleccionado}")
         
-        col_m7, col_m8, col_m9 = st.columns(3)
+        # Incorporación de los nuevos KPIs solicitados (4 columnas)
+        col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M")
         col_m8.metric("Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%")
-        col_m9.metric("Margen Neto Final", f"{datos_año['Margen Neto (%)']:.2f}%")
+        col_m9.metric("Rentabilidad s/ Ventas (Neto)", f"{datos_año['Margen Neto (%)']:.2f}%")
+        col_m10.metric("Rentabilidad s/ PN (ROE)", f"{datos_año['ROE (%)']:.2f}%")
         
         st.write("")
         col_t3a, col_t3b = st.columns(2)
@@ -215,8 +217,9 @@ if archivo_subido is not None:
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Ventas vs. Margen Neto (ROS):** Permite evaluar si el crecimiento en el volumen de actividad se traduce en una mayor eficiencia final.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos, aislando amortizaciones e impuestos.
+        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
+        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
         """)
 
     # --- SOLAPA 4: DUPONT ---
