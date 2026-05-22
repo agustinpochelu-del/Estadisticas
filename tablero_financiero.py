@@ -7,6 +7,15 @@ import numpy as np
 # Configuración de la página
 st.set_page_config(page_title="Tablero de Análisis Integral", layout="wide")
 
+# --- FUNCIÓN DE PANTALLA COMPLETA (POP-UP) ---
+@st.dialog("🔍 Vista Ampliada del Análisis", width="large")
+def mostrar_grafico_ampliado(figura):
+    # Clonamos el gráfico y le damos altura extra para la vista XL
+    fig_xl = go.Figure(figura)
+    fig_xl.update_layout(height=650)
+    st.plotly_chart(fig_xl, use_container_width=True)
+
+# Encabezado
 st.title("📊 Análisis Integral de Situación Patrimonial y Resultados")
 st.markdown("Esquema de Análisis Completo y Automatizado para la Toma de Decisiones.")
 
@@ -74,7 +83,7 @@ if archivo_subido is not None:
     # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
     st.sidebar.header("🔍 Filtros del Tablero")
     
-    # Filtro de rango de años para acotar las tendencias temporales
+    # Filtro de rango de años
     lista_años = sorted(df_kpis.index.tolist())
     rango_años = st.sidebar.slider(
         "Seleccionar Período de Análisis:",
@@ -83,18 +92,16 @@ if archivo_subido is not None:
         value=(int(min(lista_años)), int(max(lista_años)))
     )
     
-    # Filtrado del dataframe según las reglas del slider
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
     
-    # Selector de año puntual (acotado al rango seleccionado arriba)
+    # Selector de año puntual
     años_disponibles = df_filtrado.index.sort_values(ascending=False).tolist()
     año_seleccionado = st.sidebar.selectbox("📅 Ejercicio para análisis puntual:", años_disponibles)
-    
     datos_año = df_filtrado.loc[año_seleccionado]
     
     st.divider()
     
-    # --- 3. ESTRUCTURA DE SOLAPAS CON DATOS FILTRADOS ---
+    # --- 3. ESTRUCTURA DE SOLAPAS ---
     tab1, tab2, tab3, tab4 = st.tabs([
         "🏛️ Estructura Patrimonial", 
         "💧 Liquidez y Corto Plazo", 
@@ -118,19 +125,23 @@ if archivo_subido is not None:
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
-            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=550)
+            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
             st.plotly_chart(fig_pas, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Fondeo", key="btn_pas", use_container_width=True):
+                mostrar_grafico_ampliado(fig_pas)
             
         with col_t1b:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
-            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=550)
+            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
             st.plotly_chart(fig_act, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
+                mostrar_grafico_ampliado(fig_act)
             
         st.info("""
         **💡 Guía de interpretación:**
-        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. Un ratio de 0.39 significa que los terceros financian el equivalente al 39% del patrimonio.
+        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios. 
         - **Estructura de Bloques:** El gráfico de Fondeo debe coordinar con el de Inversión. Idealmente, los activos a largo plazo (Bienes de Uso) deben financiarse con patrimonio neto o pasivos a largo plazo para no asfixiar la caja operativa.
         """)
 
@@ -148,13 +159,15 @@ if archivo_subido is not None:
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
         fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
-        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=550)
+        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=500)
         st.plotly_chart(fig_liq, use_container_width=True)
+        if st.button("🔍 Ampliar Gráfico de Liquidez", key="btn_liq", use_container_width=True):
+            mostrar_grafico_ampliado(fig_liq)
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año. Si es menor a 1.0, el Capital de Trabajo se vuelve negativo, marcando un riesgo operativo de corto plazo.
-        - **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja, bancos y cuentas a cobrar rápidas.
+        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año.
+        - **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja y cuentas a cobrar rápidas.
         """)
 
     # --- SOLAPA 3: RENTABILIDAD ---
@@ -171,42 +184,39 @@ if archivo_subido is not None:
         
         with col_t3a:
             st.markdown("##### 🛒 Volumen de Ventas vs Eficiencia (ROS)")
-            fig_ventas_margen = go.Figure()
-            # Ventas en barras (Eje izquierdo)
-            fig_ventas_margen.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y'))
-            # Rentabilidad sobre ventas / Margen Neto en línea (Eje derecho)
-            fig_ventas_margen.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3)))
-            
-            fig_ventas_margen.update_layout(
+            fig_ventas = go.Figure()
+            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y'))
+            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3)))
+            fig_ventas.update_layout(
                 title="Evolución de Ventas vs Margen Neto Final",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen Neto (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified", height=550
+                barmode='group', hovermode="x unified", height=450
             )
-            st.plotly_chart(fig_ventas_margen, use_container_width=True)
+            st.plotly_chart(fig_ventas, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Ventas", key="btn_ventas", use_container_width=True):
+                mostrar_grafico_ampliado(fig_ventas)
             
         with col_t3b:
             st.markdown("##### 💰 Generación de Caja Operativa")
             fig_rent = go.Figure()
-            # EBITDA y Resultado Neto en barras (Eje izquierdo)
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA)', marker_color='#bcbd22', yaxis='y'))
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
-            # Margen EBITDA en línea (Eje derecho)
             fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
-            
             fig_rent.update_layout(
                 title="EBITDA vs Resultado Neto Real",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen EBITDA (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified", height=550
+                barmode='group', hovermode="x unified", height=450
             )
             st.plotly_chart(fig_rent, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Caja", key="btn_caja", use_container_width=True):
+                mostrar_grafico_ampliado(fig_rent)
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Ventas vs. Margen Neto (ROS):** Permite evaluar si el crecimiento en el volumen de actividad (barras) se traduce en una mayor eficiencia final (línea), o si por el contrario, mayores ventas diluyen el margen debido a incrementos desproporcionados en costos o estructura.
-        - **Caja Operativa (EBITDA Proxy):** Representa el resultado puramente operativo del negocio, antes de restarle los efectos de las amortizaciones, la estructura financiera (intereses) y el impuesto a las ganancias. Muestra el verdadero potencial del negocio para generar fondos.
-        - **Margen Neto Final:** Es el porcentaje de cada peso vendido que queda libre como utilidad neta para los socios tras cubrir absolutamente todos los costos, gastos, previsiones e impuestos del ejercicio.
+        - **Ventas vs. Margen Neto (ROS):** Permite evaluar si el crecimiento en el volumen de actividad se traduce en una mayor eficiencia final.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos, aislando amortizaciones e impuestos.
         """)
 
     # --- SOLAPA 4: DUPONT ---
@@ -222,15 +232,14 @@ if archivo_subido is not None:
         st.write("")
         fig_dupont = go.Figure()
         fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4)))
-        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=550)
+        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=500)
         st.plotly_chart(fig_dupont, use_container_width=True)
+        if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
+            mostrar_grafico_ampliado(fig_dupont)
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **El Modelo DuPont** desarma el ROE para revelar la verdadera palanca del negocio. La fórmula dicta que el rendimiento de los socios surge de multiplicar tres frentes independientes:
-          1. **Margen Neto (Rentabilidad):** Cuánto se gana por cada peso que se vende (gestión de precios y costos operativos).
-          2. **Rotación de Activos (Eficiencia):** Cuántas veces se vende el equivalente al activo total en el año (productividad de las inversiones).
-          3. **Multiplicador de Capital (Apalancamiento):** El grado en que la empresa se apalanca con deuda de terceros para multiplicar el rendimiento del capital propio.
+        - **El Modelo DuPont** desarma el ROE para revelar la verdadera palanca del negocio multiplicando tres frentes: Rentabilidad (Margen), Eficiencia (Rotación de Activos) y Fondeo (Apalancamiento).
         """)
 
 else:
