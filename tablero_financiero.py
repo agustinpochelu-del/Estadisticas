@@ -167,21 +167,44 @@ if archivo_subido is not None:
         col_m9.metric("Margen Neto Final", f"{datos_año['Margen Neto (%)']:.2f}%")
         
         st.write("")
-        fig_rent = go.Figure()
-        fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA Proxy)', marker_color='#bcbd22', yaxis='y'))
-        fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
-        fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
+        col_t3a, col_t3b = st.columns(2)
         
-        fig_rent.update_layout(
-            title="Comparativo de Resultados Reales y Margen Operativo",
-            yaxis=dict(title="Millones de Pesos"),
-            yaxis2=dict(title="Margen (%)", overlaying='y', side='right', showgrid=False),
-            barmode='group', hovermode="x unified"
-        )
-        st.plotly_chart(fig_rent, use_container_width=True)
+        with col_t3a:
+            st.markdown("##### 🛒 Volumen de Ventas vs Eficiencia (ROS)")
+            fig_ventas_margen = go.Figure()
+            # Ventas en barras (Eje izquierdo)
+            fig_ventas_margen.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y'))
+            # Rentabilidad sobre ventas / Margen Neto en línea (Eje derecho)
+            fig_ventas_margen.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3)))
+            
+            fig_ventas_margen.update_layout(
+                title="Evolución de Ventas vs Margen Neto Final",
+                yaxis=dict(title="Millones de Pesos"),
+                yaxis2=dict(title="Margen Neto (%)", overlaying='y', side='right', showgrid=False),
+                barmode='group', hovermode="x unified"
+            )
+            st.plotly_chart(fig_ventas_margen, use_container_width=True)
+            
+        with col_t3b:
+            st.markdown("##### 💰 Generación de Caja Operativa")
+            fig_rent = go.Figure()
+            # EBITDA y Resultado Neto en barras (Eje izquierdo)
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA)', marker_color='#bcbd22', yaxis='y'))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
+            # Margen EBITDA en línea (Eje derecho)
+            fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
+            
+            fig_rent.update_layout(
+                title="EBITDA vs Resultado Neto Real",
+                yaxis=dict(title="Millones de Pesos"),
+                yaxis2=dict(title="Margen EBITDA (%)", overlaying='y', side='right', showgrid=False),
+                barmode='group', hovermode="x unified"
+            )
+            st.plotly_chart(fig_rent, use_container_width=True)
         
         st.info("""
         **💡 Guía de interpretación:**
+        - **Ventas vs. Margen Neto (ROS):** Permite evaluar si el crecimiento en el volumen de actividad (barras) se traduce en una mayor eficiencia final (línea), o si por el contrario, mayores ventas diluyen el margen debido a incrementos desproporcionados en costos o estructura.
         - **Caja Operativa (EBITDA Proxy):** Representa el resultado puramente operativo del negocio, antes de restarle los efectos de las amortizaciones, la estructura financiera (intereses) y el impuesto a las ganancias. Muestra el verdadero potencial del negocio para generar fondos.
         - **Margen Neto Final:** Es el porcentaje de cada peso vendido que queda libre como utilidad neta para los socios tras cubrir absolutamente todos los costos, gastos, previsiones e impuestos del ejercicio.
         """)
