@@ -122,9 +122,10 @@ if archivo_subido is not None:
         col_t1a, col_t1b = st.columns(2)
         with col_t1a:
             fig_pas = go.Figure()
-            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e'))
-            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728'))
-            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4'))
+            # Agregamos formato estricto a las etiquetas emergentes (hovertemplate)
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
             st.plotly_chart(fig_pas, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Fondeo", key="btn_pas", use_container_width=True):
@@ -132,8 +133,8 @@ if archivo_subido is not None:
             
         with col_t1b:
             fig_act = go.Figure()
-            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c'))
-            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b'))
+            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
             st.plotly_chart(fig_act, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
@@ -156,8 +157,9 @@ if archivo_subido is not None:
         
         st.write("")
         fig_liq = go.Figure()
-        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf')))
-        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot')))
+        # Formato de dos decimales para los índices de liquidez
+        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf'), hovertemplate="%{y:.2f}<extra></extra>"))
+        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot'), hovertemplate="%{y:.2f}<extra></extra>"))
         fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
         fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=500)
         st.plotly_chart(fig_liq, use_container_width=True)
@@ -174,7 +176,6 @@ if archivo_subido is not None:
     with tab3:
         st.subheader(f"Rendimiento Económico - Ejercicio {año_seleccionado}")
         
-        # Incorporación de los nuevos KPIs solicitados (4 columnas)
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M")
         col_m8.metric("Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%")
@@ -187,8 +188,9 @@ if archivo_subido is not None:
         with col_t3a:
             st.markdown("##### 🛒 Volumen de Ventas vs Eficiencia (ROS)")
             fig_ventas = go.Figure()
-            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y'))
-            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3)))
+            # Aplicamos pesos a las barras y porcentaje a la línea
+            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas Netas', marker_color='#17becf', yaxis='y', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#ff7f0e', width=3), hovertemplate="%{y:.2f}%<extra></extra>"))
             fig_ventas.update_layout(
                 title="Evolución de Ventas vs Margen Neto Final",
                 yaxis=dict(title="Millones de Pesos"),
@@ -202,9 +204,9 @@ if archivo_subido is not None:
         with col_t3b:
             st.markdown("##### 💰 Generación de Caja Operativa")
             fig_rent = go.Figure()
-            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA)', marker_color='#bcbd22', yaxis='y'))
-            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y'))
-            fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2)))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='Caja Operativa (EBITDA)', marker_color='#bcbd22', yaxis='y', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto Final', marker_color='#2ca02c', yaxis='y', hovertemplate="$ %{y:.2f} M<extra></extra>"))
+            fig_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen EBITDA (%)'], mode='lines+markers', name='Margen EBITDA (%)', yaxis='y2', line=dict(color='black', width=2), hovertemplate="%{y:.2f}%<extra></extra>"))
             fig_rent.update_layout(
                 title="EBITDA vs Resultado Neto Real",
                 yaxis=dict(title="Millones de Pesos"),
@@ -234,7 +236,7 @@ if archivo_subido is not None:
         
         st.write("")
         fig_dupont = go.Figure()
-        fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4)))
+        fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4), hovertemplate="%{y:.2f}%<extra></extra>"))
         fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=500)
         st.plotly_chart(fig_dupont, use_container_width=True)
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
