@@ -26,33 +26,28 @@ if archivo_subido is not None:
     df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
     df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
     
-    # --- NUEVO: LECTURA DINÁMICA DE LA HOJA DE RUBROS GRALES ---
-    # Leemos la hoja completa sin encabezados para encontrar la tabla
+    # --- LECTURA DINÁMICA DE LA HOJA DE RUBROS GRALES ---
     df_rubros_raw = pd.read_excel(archivo_subido, sheet_name="Rubros Grales", header=None)
     
-    # Buscamos la fila donde arranca el mapeo (donde dice 'Sub Rubro')
     try:
         fila_inicio = df_rubros_raw[df_rubros_raw[0] == 'Sub Rubro'].index[0]
         df_mapeo = df_rubros_raw.iloc[fila_inicio+1:].dropna(subset=[0, 1]).copy()
         df_mapeo.columns = ['Sub Rubro', 'Cuenta']
-        # Limpiamos los espacios en blanco por las dudas
         df_mapeo['Sub Rubro'] = df_mapeo['Sub Rubro'].astype(str).str.strip()
         df_mapeo['Cuenta'] = df_mapeo['Cuenta'].astype(str).str.strip()
     except Exception as e:
         st.error("⚠️ No se encontró la tabla de mapeo ('Sub Rubro' y 'Cuenta') en la hoja 'Rubros Grales'.")
         st.stop()
 
-    # Función motor para sumar dinámicamente las cuentas basándose exclusivamente en tu mapeo de Excel
+    # Función motor para sumar dinámicamente las cuentas
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
-        # Filtramos las cuentas asociadas ignorando mayúsculas/minúsculas
         cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
         cuentas_existentes = [c for c in cuentas if c in df_datos.columns]
         if not cuentas_existentes:
             return pd.Series(0, index=df_datos.index)
         return df_datos[cuentas_existentes].sum(axis=1)
 
-    # --- 2. CÁLCULOS 100% DINÁMICOS ---
-    # PILAR 1: Patrimonio y Estructura
+    # --- 2. CÁLCULOS ---
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
     activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
@@ -64,21 +59,17 @@ if archivo_subido is not None:
     patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
-    # PILAR 2: Liquidez
     liquidez_corriente = activo_corriente / pasivo_corriente.replace(0, pd.NA)
-    # Prueba Acida = Activo Corriente sin Bienes de Cambio
     bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
     prueba_acida = (activo_corriente - bienes_de_cambio) / pasivo_corriente.replace(0, pd.NA)
     capital_trabajo = activo_corriente - pasivo_corriente
     
-    # PILAR 3: Rentabilidad y Caja Operativa
     ventas = df_pivot.get('ventas', pd.Series(0, index=df_pivot.index))
     resultado_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
     
-    # PILAR 4: Modelo DuPont
     roe = (resultado_neto / patrimonio_neto.replace(0, pd.NA)) * 100
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
@@ -119,9 +110,7 @@ if archivo_subido is not None:
     
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
     
-    # Selector de año puntual
-    años_disponibles = df_filtrado.index.sort_values(ascending=False).tolist()
-    año_seleccionado = st.sidebar.selectbox("📅 Ejercicio para análisis puntual:", años_disponibles)
+    año_seleccionado = st.sidebar.selectbox("📅 Ejercicio para análisis puntual:", df_filtrado.index.sort_values(ascending=False).tolist())
     datos_año = df_filtrado.loc[año_seleccionado]
     
     st.divider()
@@ -138,39 +127,40 @@ if archivo_subido is not None:
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
-        # --- GENERADOR DINÁMICO DE TOOLTIPS (SE ALIMENTA DEL EXCEL) ---
-        def generar_tooltip(sub_rubro_nombre):
+        # Auxiliar para armar las leyendas de las herramientas (hovertemplate)
+        def armar_texto_hover(sub_rubro_nombre):
             cuentas = df_mapeo[df_mapeo['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
-            texto = "Subcuentas integrantes:\n"
+            lineas = f"<b>{sub_rubro_nombre.upper()}</b><br>"
             for c in cuentas:
                 if c in df_pivot.columns:
-                    try:
-                        val = df_pivot[c].loc[año_seleccionado] / 1e6
-                        if val != 0:
-                            texto += f"- {c}: $ {val:,.2f} M\n"
-                    except:
-                        pass
-            if texto == "Subcuentas integrantes:\n":
-                texto += "- Sin movimientos este año"
-            return texto
+                    val = df_pivot[c].loc[año_seleccionado] / 1e6
+                    if val != 0:
+                        lineas += f"• {c}: $ {val:,.2f} M<br>"
+            return lineas + "<extra></extra>"
 
         st.markdown("##### 🧩 Componentes del Activo")
         col_a1, col_a2, col_a3 = st.columns(3)
         
-        help_at = f"Composición:\n- Corriente: $ {datos_año['Activo Corriente']:,.2f} M\n- No Corriente: $ {datos_año['Activo No Corriente']:,.2f} M"
-        
-        col_a1.metric("Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", help=help_at)
-        col_a2.metric("Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", help=generar_tooltip('Activo Corriente'))
-        col_a3.metric("Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", help=generar_tooltip('Activo No Corriente'))
+        # Tooltips de cabecera estáticos (help)
+        def generar_texto_help(sub_rubro_nombre):
+            cuentas = df_mapeo[df_mapeo['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
+            texto = "Subcuentas integrantes:\n"
+            for c in cuentas:
+                if c in df_pivot.columns:
+                    val = df_pivot[c].loc[año_seleccionado] / 1e6
+                    if val != 0:
+                        texto += f"- {c}: $ {val:,.2f} M\n"
+            return texto
+
+        col_a1.metric("Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", help=f"Composición:\n- Corriente: $ {datos_año['Activo Corriente']:,.2f} M\n- No Corriente: $ {datos_año['Activo No Corriente']:,.2f} M")
+        col_a2.metric("Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", help=generar_texto_help('Activo Corriente'))
+        col_a3.metric("Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", help=generar_texto_help('Activo No Corriente'))
         
         st.write("")
         st.markdown("##### 🪙 Estructura Financiera")
         col_m1, col_m2, col_m3 = st.columns(3)
-        
-        # Agregamos tooltips dinámicos también para el Pasivo para dejarlo recontra completo
-        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", help=generar_tooltip('Patrimonio Neto'))
-        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M", 
-                      help=f"Composición:\n- Corto Plazo: $ {datos_año['Pasivo Corriente']:,.2f} M\n- Largo Plazo: $ {datos_año['Pasivo No Corriente']:,.2f} M")
+        col_m1.metric("Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", help=generar_texto_help('Patrimonio Neto'))
+        col_m2.metric("Pasivo Total (Fondeo Terceros)", f"$ {datos_año['Pasivo Total']:,.2f} M", help=f"Composición:\n- Corto Plazo: $ {datos_año['Pasivo Corriente']:,.2f} M\n- Largo Plazo: $ {datos_año['Pasivo No Corriente']:,.2f} M")
         col_m3.metric("Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}")
         
         st.write("")
@@ -178,32 +168,32 @@ if archivo_subido is not None:
         
         fig_eq = go.Figure()
         
-        # Bloques de la columna de la IZQUIERDA (Inversión / Activos)
-        fig_eq.add_trace(go.Bar(
-            x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo Corriente']],
-            name='Activo Corriente', marker_color='#2ca02c',
-            text=f"<b>ACTIVO CORRIENTE</b><br><br>$ {datos_año['Activo Corriente']:,.2f} M",
-            textposition='inside', insidetextanchor='middle',
-            marker=dict(line=dict(color='#222', width=2)),
-            hovertemplate="$ %{y:.2f} M<extra></extra>"
-        ))
+        # --- LADO IZQUIERDO: INVERSIÓN (Orden contable: Corriente ARRIBA, No Corriente ABAJO) ---
         fig_eq.add_trace(go.Bar(
             x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo No Corriente']],
             name='Activo No Corriente', marker_color='#a1d99b',
             text=f"<b>ACTIVO NO CORRIENTE</b><br>(Bienes de Uso)<br><br>$ {datos_año['Activo No Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
-            hovertemplate="$ %{y:.2f} M<extra></extra>"
+            hovertemplate=armar_texto_hover('Activo No Corriente')
         ))
-        
-        # Bloques de la columna de la DERECHA (Financiamiento / Pasivo + PN)
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Pasivo Corriente']],
-            name='Pasivo Corriente', marker_color='#ff7f0e',
-            text=f"<b>PASIVO CORRIENTE</b><br><br>$ {datos_año['Pasivo Corriente']:,.2f} M",
+            x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo Corriente']],
+            name='Activo Corriente', marker_color='#2ca02c',
+            text=f"<b>ACTIVO CORRIENTE</b><br><br>$ {datos_año['Activo Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
-            hovertemplate="$ %{y:.2f} M<extra></extra>"
+            hovertemplate=armar_texto_hover('Activo Corriente')
+        ))
+        
+        # --- LADO DERECHO: FINANCIAMIENTO (Orden contable: Pasivo Corriente ARRIBA, Pasivo No Corriente AL MEDIO, PN ABAJO) ---
+        fig_eq.add_trace(go.Bar(
+            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Patrimonio Neto']],
+            name='Patrimonio Neto', marker_color='#1f77b4',
+            text=f"<b>PATRIMONIO NETO</b><br><br>$ {datos_año['Patrimonio Neto']:,.2f} M",
+            textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2)),
+            hovertemplate=armar_texto_hover('Patrimonio Neto')
         ))
         fig_eq.add_trace(go.Bar(
             x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Pasivo No Corriente']],
@@ -211,18 +201,18 @@ if archivo_subido is not None:
             text=f"<b>PASIVO NO CORRIENTE</b><br><br>$ {datos_año['Pasivo No Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
-            hovertemplate="$ %{y:.2f} M<extra></extra>"
+            hovertemplate=armar_texto_hover('Pasivo no Corriente')
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Patrimonio Neto']],
-            name='Patrimonio Neto', marker_color='#1f77b4',
-            text=f"<b>PATRIMONIO NETO</b><br><br>$ {datos_año['Patrimonio Neto']:,.2f} M",
+            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Pasivo Corriente']],
+            name='Pasivo Corriente', marker_color='#ff7f0e',
+            text=f"<b>PASIVO CORRIENTE</b><br><br>$ {datos_año['Pasivo Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2)),
-            hovertemplate="$ %{y:.2f} M<extra></extra>"
+            hovertemplate=armar_texto_hover('Pasivo Corriente')
         ))
         
-        # EL TRUCO CONTABLE: bargap=0 fusiona las columnas en un solo rectángulo
+        # Ajuste de Layout: Establecemos bargap=0 y limpiamos los ejes
         fig_eq.update_layout(
             barmode='stack',
             bargap=0,  
