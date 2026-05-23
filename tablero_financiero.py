@@ -138,12 +138,12 @@ if archivo_subido is not None:
         x=0.5
     )
     
-    # --- 3. ESTRUCTURA DE SOLAPAS DE PRESENTACIÓN ---
-    tab1, tab2, tab3, tab4 = st.tabs([
+  # --- 3. ESTRUCTURA DE SOLAPAS ---
+    tab1, tab2, tab_rotaciones, tab3 = st.tabs([
         "🏛️ Estructura Patrimonial", 
-        "💧 Liquidez y Compromisos", 
-        "📈 Rentabilidad Económica", 
-        "🎯 Análisis DuPont (ROE)"
+        "💧 Liquidez y Corto Plazo", 
+        "🔄 Rotaciones y Ciclos",
+        "📈 Rentabilidad Económica"
     ])
     
     # --- SOLAPA 1: PATRIMONIO (FOTO DEL BALANCE) ---
@@ -369,17 +369,11 @@ if archivo_subido is not None:
             st.plotly_chart(fig_rent, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Caja", key="btn_caja", use_container_width=True):
                 mostrar_grafico_ampliado(fig_rent)
-        
-        st.info("""
-        **💡 Guía de interpretación:**
-        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
-        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
-        """)
 
-    # --- SOLAPA 4: MODELO DUPONT ---
-    with tab4:
-        st.subheader(f"Descomposición del ROE (Esquema DuPont) - Ejercicio {año_seleccionado}")
+        # --- INTEGRACIÓN PUNTO 2: MODELO DUPONT DENTRO DE RENTABILIDAD ---
+        st.write("")
+        st.markdown("---")
+        st.subheader(f"🎯 Descomposición del ROE (Esquema DuPont) - Ejercicio {año_seleccionado}")
         
         col_d1, col_d2, col_d3, col_d4 = st.columns(4)
         col_d1.metric("Margen Neto (Eficiencia)", f"{datos_año['Margen Neto (%)']:.2f}%")
@@ -389,16 +383,37 @@ if archivo_subido is not None:
         
         st.write("")
         fig_dupont = go.Figure()
-        fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4), hovertemplate="%{y:.2f}%<extra></extra>"))
-        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=500, legend=config_leyenda_abajo)
+        fig_dupont.add_trace(go.Scatter(
+            x=df_filtrado.index, y=df_filtrado['ROE (%)'], 
+            mode='lines+markers', name='ROE (%) Histórico', 
+            line=dict(color='#e377c2', width=4), 
+            hovertemplate="%{y:.2f}%<extra></extra>"
+        ))
+        fig_dupont.update_layout(
+            title="Evolución de la Rentabilidad del Capital Propio (ROE)", 
+            yaxis_title="Porcentaje (%)", 
+            hovermode="x unified", height=500, legend=config_leyenda_abajo
+        )
         st.plotly_chart(fig_dupont, use_container_width=True)
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont)
         
         st.info("""
-        **💡 Guía de interpretación:**
-        - **El Modelo DuPont** desarma el ROE para revelar la verdadera palanca del negocio multiplicando tres frentes: Rentabilidad (Margen), Eficiencia (Rotación de Activos) y Fondeo (Apalancamiento).
+        **💡 Guía de interpretación del Modelo DuPont:**
+        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
+        1. **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
+        2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
+        3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
+        
+        st.info("""
+        **💡 Guía de interpretación:**
+        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
+        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
+        """)
+
+  
 
 else:
     st.info("👆 Por favor, subí el archivo Excel (.xlsx) para comenzar el análisis.")
