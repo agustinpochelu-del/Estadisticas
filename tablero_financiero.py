@@ -381,19 +381,50 @@ if archivo_subido is not None:
         col_d3.metric("Multiplicador (Apalancamiento)", f"{datos_año['Multiplicador Capital']:.2f}x")
         col_d4.metric("ROE Final (Rendimiento PN)", f"{datos_año['ROE (%)']:.2f}%")
         
+        # --- REEMPLAZO: GRÁFICO DUPONT AVANZADO CON DOBLE ESCALA ---
         st.write("")
         fig_dupont = go.Figure()
+        
+        # Eje Y Principal: Tasas en Porcentaje (%)
         fig_dupont.add_trace(go.Scatter(
             x=df_filtrado.index, y=df_filtrado['ROE (%)'], 
-            mode='lines+markers', name='ROE (%) Histórico', 
+            mode='lines+markers', name='ROE (%) [Eje Izq]', 
             line=dict(color='#e377c2', width=4), 
-            hovertemplate="%{y:.2f}%<extra></extra>"
+            hovertemplate="ROE: %{y:.2f}%<extra></extra>"
         ))
+        fig_dupont.add_trace(go.Scatter(
+            x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], 
+            mode='lines+markers', name='Margen Neto (%) [Eje Izq]', 
+            line=dict(color='#ff7f0e', width=2, dash='dash'), 
+            hovertemplate="Margen Neto: %{y:.2f}%<extra></extra>"
+        ))
+        
+        # Eje Y Secundario: Ratios en Veces (x)
+        fig_dupont.add_trace(go.Scatter(
+            x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], 
+            mode='lines+markers', name='Rotación Activos (x) [Eje Der]', 
+            yaxis='y2', line=dict(color='#2ca02c', width=2), 
+            hovertemplate="Rotación: %{y:.2f}x<extra></extra>"
+        ))
+        fig_dupont.add_trace(go.Scatter(
+            x=df_filtrado.index, y=df_filtrado['Multiplicador Capital'], 
+            mode='lines+markers', name='Multiplicador Cap. (x) [Eje Der]', 
+            yaxis='y2', line=dict(color='#1f77b4', width=2, dash='dot'), 
+            hovertemplate="Multiplicador: %{y:.2f}x<extra></extra>"
+        ))
+        
+        # Configuración de Layout con Eje Y Doble
         fig_dupont.update_layout(
-            title="Evolución de la Rentabilidad del Capital Propio (ROE)", 
-            yaxis_title="Porcentaje (%)", 
+            title="Análisis de Tendencias DuPont: Drivers del ROE", 
+            xaxis=dict(title="Período"),
+            yaxis=dict(title="Porcentaje (%)", side="left"),
+            yaxis2=dict(title="Ratio / Veces (x)", overlaying='y', side='right', showgrid=False),
             hovermode="x unified", height=500, legend=config_leyenda_abajo
         )
+        st.plotly_chart(fig_dupont, use_container_width=True)
+        if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
+            mostrar_grafico_ampliado(fig_dupont)
+            
         st.plotly_chart(fig_dupont, use_container_width=True)
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont)
