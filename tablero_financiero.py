@@ -398,19 +398,16 @@ if archivo_subido is not None:
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont)
         
-        st.info("""
-        **💡 Guía de interpretación del Modelo DuPont:**
-        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
-        1. **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
-        2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
-        3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
-        """)
-        
-        st.info("""
+       st.info("""
         **💡 Guía de interpretación:**
         - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
         - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
         - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
+        **💡 Guía de interpretación del Modelo DuPont:**
+        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
+        - **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
+        - **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
+        - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
 
   
