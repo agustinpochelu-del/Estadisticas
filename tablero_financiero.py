@@ -47,7 +47,7 @@ if archivo_subido is not None:
             return pd.Series(0, index=df_datos.index)
         return df_datos[cuentas_existentes].sum(axis=1)
 
-    # --- 2. CÁLCULOS ---
+    # --- 2. MOTOR DE CÁLCULOS ---
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
     activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
@@ -59,19 +59,29 @@ if archivo_subido is not None:
     patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
+    # Corrección 1: Prueba Ácida estricta (solo activo líquido y créditos comerciales puros)
+    activo_liquido_puro = df_pivot.get('activo liquido', pd.Series(0, index=df_pivot.index))
+    creditos_comerciales_puros = df_pivot.get('creditos comerciales', pd.Series(0, index=df_pivot.index))
+    prueba_acida = (activo_liquido_puro + creditos_comerciales_puros) / pasivo_corriente.replace(0, pd.NA)
+    
     liquidez_corriente = activo_corriente / pasivo_corriente.replace(0, pd.NA)
-    bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
-    prueba_acida = (activo_corriente - bienes_de_cambio) / pasivo_corriente.replace(0, pd.NA)
     capital_trabajo = activo_corriente - pasivo_corriente
     
-    # Nuevos cálculos para Solvencia y Efecto Palanca
+    # Solvencia e Índice de Garantía solicitado (PN / Pasivo)
     solvencia = activo_total / pasivo_total.replace(0, pd.NA)
+    indice_garantia = patrimonio_neto / pasivo_total.replace(0, pd.NA)
     
+    # Cuentas de Resultados básicas
     ventas = df_pivot.get('ventas', pd.Series(0, index=df_pivot.index))
     resultado_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
+    
+    # Corrección 2: Fórmula del Efecto Palanca Avanzado (Grado de Apalancamiento Financiero)
+    num_palanca = resultado_neto / patrimonio_neto.replace(0, pd.NA)
+    den_palanca = (resultado_neto + df_pivot.get('Intereses Financieros', 0)) / (patrimonio_neto + pasivo_no_corriente).replace(0, pd.NA)
+    efecto_palanca = num_palanca / den_palanca.replace(0, pd.NA)
     
     roe = (resultado_neto / patrimonio_neto.replace(0, pd.NA)) * 100
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
@@ -91,7 +101,8 @@ if archivo_subido is not None:
         'Prueba Acida': prueba_acida, 
         'Capital de Trabajo': capital_trabajo / 1e6,
         'Solvencia': solvencia,
-        'Efecto Palanca': multiplicador_capital, # Representa el multiplicador de apalancamiento financiero
+        'Garantia': indice_garantia,
+        'Efecto Palanca': efecto_palanca,
         'Ventas': ventas / 1e6, 
         'Resultado Neto': resultado_neto / 1e6, 
         'EBITDA Proxy': ebitda_proxy / 1e6,
@@ -262,15 +273,16 @@ if archivo_subido is not None:
         st.markdown("##### 💧 Índices de Liquidez (Corto Plazo)")
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
-        col_m5.metric("Prueba Ácida (Líquida)", f"{datos_año['Prueba Acida']:.2f}")
+        col_m5.metric("Prueba Ácida (Filtrada)", f"{datos_año['Prueba Acida']:.2f}")
         col_m6.metric("Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M")
         
         st.write("")
-        # Fila 2: Nuevos KPIs de Estructura Sólida de Largo Plazo
-        st.markdown("##### ⚖️ Solvencia y Apalancamiento (Estructura de Largo Plazo)")
-        col_m11, col_m12 = st.columns(2)
+        # Fila 2: KPIs de Estructura Sólida de Largo Plazo (Solvencia, Respaldo y Palanca)
+        st.markdown("##### ⚖️ Solvencia, Respaldo y Apalancamiento (Largo Plazo)")
+        col_m11, col_m12, col_m13 = st.columns(3)
         col_m11.metric("Índice de Solvencia", f"{datos_año['Solvencia']:.2f}")
-        col_m12.metric("Efecto Palanca Financiera", f"{datos_año['Efecto Palanca']:.2f}x")
+        col_m12.metric("Índice de Garantía (PN / Pasivo)", f"{datos_año['Garantia']:.2f}")
+        col_m13.metric("Efecto Palanca (GAF)", f"{datos_año['Efecto Palanca']:.2f}x")
         
         st.write("")
         # Gráficos simétricos de Tendencias enfrentados al 50% de ancho
@@ -287,21 +299,22 @@ if archivo_subido is not None:
                 mostrar_grafico_ampliado(fig_liq)
                 
         with col_t2b:
-            # Nuevo Gráfico de Solvencia y Efecto Palanca
             fig_solv = go.Figure()
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
-            fig_solv.update_layout(title="Evolución de Solvencia y Apalancamiento Histórico", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450)
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
+            fig_solv.update_layout(title="Evolución de Solvencia, Respaldo y Palanca", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450)
             st.plotly_chart(fig_solv, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Solvencia y Palanca", key="btn_solv", use_container_width=True):
                 mostrar_grafico_ampliado(fig_solv)
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año.
-        - **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja y cuentas a cobrar rápidas.
-        - **Índice de Solvencia (Activo Total / Pasivo Total):** Evalúa la garantía global que ofrece la empresa a largo plazo. Mide si la totalidad de los bienes indexados cubre la totalidad de las obligaciones con terceros. Un ratio superior a 1.5 indica una estructura patrimonial saludable y con respaldo.
-        - **Efecto Palanca Financiera (Activo / PN):** Determina el grado de ventaja que tiene la empresa al financiarse con capital de terceros. Si este indicador es superior a 1.0, significa que la rentabilidad de los fondos invertidos supera el costo de la deuda, logrando un apalancamiento positivo que incrementa el retorno final para los socios.
+        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o realizables de corto plazo se tienen para cubrir cada peso de deuda que vence dentro del año.
+        - **Prueba Ácida Filtrada:** Mide la capacidad de pago inmediata más estricta. Excluye totalmente los inventarios (Bienes de cambio), los créditos fiscales y otros créditos no comerciales, computando únicamente la disponibilidad líquida real y las cuentas a cobrar de clientes de forma prolija.
+        - **Índice de Solvencia (Activo Total / Pasivo Total):** Mide la garantía a largo plazo de la empresa. Evalúa si el total de activos es suficiente para respaldar el total de las obligaciones contraídas con terceros.
+        - **Índice de Garantía (PN / Pasivo Total):** Es la contrapartida del endeudamiento. Mide el respaldo o "espalda propia" que ofrecen los socios ante las deudas totales. Indica cuántos pesos de capital propio respaldan cada peso de deuda externa.
+        - **Efecto Palanca Financiera (GAF):** Utiliza la fórmula avanzada de rentabilidad. Mide la relación entre el ROE y el rendimiento del capital permanente. Un valor superior a 1.0 demuestra un apalancamiento positivo: la deuda externa se tomó a un costo menor que el rendimiento del negocio, multiplicando la utilidad final para el socio.
         """)
 
     # --- SOLAPA 3: RENTABILIDAD ---
