@@ -42,12 +42,12 @@ if archivo_subido is not None:
     # Función motor para sumar dinámicamente las cuentas
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
         cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
-        cuentas_existentes = [c for c in cuentas if c in df_datos.columns]
-        if not cuentas_existentes:
+        cuentas_existing = [c for c in cuentas if c in df_datos.columns]
+        if not cuentas_existing:
             return pd.Series(0, index=df_datos.index)
-        return df_datos[cuentas_existentes].sum(axis=1)
+        return df_datos[cuentas_existing].sum(axis=1)
 
-    # --- 2. MOTOR DE CÁLCULOS ---
+    # --- 2. CÁLCULOS ---
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
     activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
@@ -59,7 +59,6 @@ if archivo_subido is not None:
     patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
-    # Corrección 1: Prueba Ácida estricta (solo activo líquido y créditos comerciales puros)
     activo_liquido_puro = df_pivot.get('activo liquido', pd.Series(0, index=df_pivot.index))
     creditos_comerciales_puros = df_pivot.get('creditos comerciales', pd.Series(0, index=df_pivot.index))
     prueba_acida = (activo_liquido_puro + creditos_comerciales_puros) / pasivo_corriente.replace(0, pd.NA)
@@ -67,18 +66,15 @@ if archivo_subido is not None:
     liquidez_corriente = activo_corriente / pasivo_corriente.replace(0, pd.NA)
     capital_trabajo = activo_corriente - pasivo_corriente
     
-    # Solvencia e Índice de Garantía solicitado (PN / Pasivo)
     solvencia = activo_total / pasivo_total.replace(0, pd.NA)
     indice_garantia = patrimonio_neto / pasivo_total.replace(0, pd.NA)
     
-    # Cuentas de Resultados básicas
     ventas = df_pivot.get('ventas', pd.Series(0, index=df_pivot.index))
     resultado_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
     
-    # Corrección 2: Fórmula del Efecto Palanca Avanzado (Grado de Apalancamiento Financiero)
     num_palanca = resultado_neto / patrimonio_neto.replace(0, pd.NA)
     den_palanca = (resultado_neto + df_pivot.get('Intereses Financieros', 0)) / (patrimonio_neto + pasivo_no_corriente).replace(0, pd.NA)
     efecto_palanca = num_palanca / den_palanca.replace(0, pd.NA)
@@ -130,6 +126,15 @@ if archivo_subido is not None:
     datos_año = df_filtrado.loc[año_seleccionado]
     
     st.divider()
+    
+    # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS
+    config_leyenda_abajo = dict(
+        orientation="h",
+        yanchor="top",
+        y=-0.22,
+        xanchor="center",
+        x=0.5
+    )
     
     # --- 3. ESTRUCTURA DE SOLAPAS ---
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -245,7 +250,7 @@ if archivo_subido is not None:
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color='#ff7f0e', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color='#d62728', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color='#1f77b4', hovertemplate="$ %{y:.2f} M<extra></extra>"))
-            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
+            fig_pas.update_layout(title="Evolución del Fondeo Histórico (Pasivo + PN)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_pas, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Fondeo", key="btn_pas", use_container_width=True):
                 mostrar_grafico_ampliado(fig_pas)
@@ -254,7 +259,7 @@ if archivo_subido is not None:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color='#2ca02c', hovertemplate="$ %{y:.2f} M<extra></extra>"))
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente (Bienes Uso)', marker_color='#8c564b', hovertemplate="$ %{y:.2f} M<extra></extra>"))
-            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450)
+            fig_act.update_layout(title="Evolución de la Inversión Histórica (Activos)", yaxis_title="Millones de Pesos", barmode='stack', hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_act, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
                 mostrar_grafico_ampliado(fig_act)
@@ -269,7 +274,6 @@ if archivo_subido is not None:
     with tab2:
         st.subheader(f"Situación de Corto y Largo Plazo - Ejercicio {año_seleccionado}")
         
-        # Fila 1: KPIs de Corto Plazo (Liquidez)
         st.markdown("##### 💧 Índices de Liquidez (Corto Plazo)")
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
@@ -277,7 +281,6 @@ if archivo_subido is not None:
         col_m6.metric("Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M")
         
         st.write("")
-        # Fila 2: KPIs de Estructura Sólida de Largo Plazo (Solvencia, Respaldo y Palanca)
         st.markdown("##### ⚖️ Solvencia, Respaldo y Apalancamiento (Largo Plazo)")
         col_m11, col_m12, col_m13 = st.columns(3)
         col_m11.metric("Índice de Solvencia", f"{datos_año['Solvencia']:.2f}")
@@ -285,7 +288,6 @@ if archivo_subido is not None:
         col_m13.metric("Efecto Palanca (GAF)", f"{datos_año['Efecto Palanca']:.2f}x")
         
         st.write("")
-        # Gráficos simétricos de Tendencias enfrentados al 50% de ancho
         col_t2a, col_t2b = st.columns(2)
         
         with col_t2a:
@@ -293,17 +295,17 @@ if archivo_subido is not None:
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf'), hovertemplate="%{y:.2f}<extra></extra>"))
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot'), hovertemplate="%{y:.2f}<extra></extra>"))
             fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
-            fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=450)
+            fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_liq, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Liquidez", key="btn_liq", use_container_width=True):
                 mostrar_grafico_ampliado(fig_liq)
                 
         with col_t2b:
             fig_solv = go.Figure()
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
-            fig_solv.update_layout(title="Evolución de Solvencia, Respaldo y Palanca", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450)
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
+            fig_solv.update_layout(title="Evolución de Solvencia, Respaldo y Palanca", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_solv, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Solvencia y Palanca", key="btn_solv", use_container_width=True):
                 mostrar_grafico_ampliado(fig_solv)
@@ -324,7 +326,7 @@ if archivo_subido is not None:
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M")
         col_m8.metric("Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%")
-        col_m9.metric("Rentabilidad s/ Ventas (Neto)", f"{datos_año['Margen Neto (%)']:.2f}%")
+        col_m7.metric("Rentabilidad s/ Ventas (Neto)", f"{datos_año['Margen Neto (%)']:.2f}%")
         col_m10.metric("Rentabilidad s/ PN (ROE)", f"{datos_año['ROE (%)']:.2f}%")
         
         st.write("")
@@ -339,7 +341,7 @@ if archivo_subido is not None:
                 title="Evolución de Ventas vs Margen Neto Final",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen Neto (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified", height=450
+                barmode='group', hovermode="x unified", height=450, legend=config_leyenda_abajo
             )
             st.plotly_chart(fig_ventas, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Ventas", key="btn_ventas", use_container_width=True):
@@ -355,7 +357,7 @@ if archivo_subido is not None:
                 title="EBITDA vs Resultado Neto Real",
                 yaxis=dict(title="Millones de Pesos"),
                 yaxis2=dict(title="Margen EBITDA (%)", overlaying='y', side='right', showgrid=False),
-                barmode='group', hovermode="x unified", height=450
+                barmode='group', hovermode="x unified", height=450, legend=config_leyenda_abajo
             )
             st.plotly_chart(fig_rent, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Caja", key="btn_caja", use_container_width=True):
@@ -381,7 +383,7 @@ if archivo_subido is not None:
         st.write("")
         fig_dupont = go.Figure()
         fig_dupont.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) Histórico', line=dict(color='#e377c2', width=4), hovertemplate="%{y:.2f}%<extra></extra>"))
-        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=500)
+        fig_dupont.update_layout(title="Evolución de la Rentabilidad del Capital Propio (ROE)", yaxis_title="Porcentaje (%)", hovermode="x unified", height=500, legend=config_leyenda_abajo)
         st.plotly_chart(fig_dupont, use_container_width=True)
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont)
