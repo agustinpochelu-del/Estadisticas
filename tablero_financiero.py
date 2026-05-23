@@ -64,6 +64,9 @@ if archivo_subido is not None:
     prueba_acida = (activo_corriente - bienes_de_cambio) / pasivo_corriente.replace(0, pd.NA)
     capital_trabajo = activo_corriente - pasivo_corriente
     
+    # Nuevos cálculos para Solvencia y Efecto Palanca
+    solvencia = activo_total / pasivo_total.replace(0, pd.NA)
+    
     ventas = df_pivot.get('ventas', pd.Series(0, index=df_pivot.index))
     resultado_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda_proxy = resultado_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
@@ -87,6 +90,8 @@ if archivo_subido is not None:
         'Liquidez Corriente': liquidez_corriente, 
         'Prueba Acida': prueba_acida, 
         'Capital de Trabajo': capital_trabajo / 1e6,
+        'Solvencia': solvencia,
+        'Efecto Palanca': multiplicador_capital, # Representa el multiplicador de apalancamiento financiero
         'Ventas': ventas / 1e6, 
         'Resultado Neto': resultado_neto / 1e6, 
         'EBITDA Proxy': ebitda_proxy / 1e6,
@@ -165,7 +170,6 @@ if archivo_subido is not None:
         st.markdown(f"<h5 style='text-align: center;'>📋 Esquema Estructural del Balance (Ecuación Patrimonial)</h5>", unsafe_allow_html=True)
         
         fig_eq = go.Figure()
-        
         fig_eq.add_trace(go.Bar(
             x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo No Corriente']],
             name='Activo No Corriente', marker_color='#a1d99b',
@@ -208,20 +212,14 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Pasivo Corriente')
         ))
         
-        # Igualamos la altura a 450 y reducimos márgenes laterales para que no se vea fino
         fig_eq.update_layout(
-            barmode='stack',
-            bargap=0,  
-            showlegend=False,
-            height=450, 
+            barmode='stack', bargap=0, showlegend=False, height=450, 
             margin=dict(t=30, b=50, l=20, r=20),
             xaxis=dict(showgrid=False, zeroline=False, showline=False, tickfont=dict(size=14, color='black')),
             yaxis=dict(showgrid=False, zeroline=False, showline=False, showticklabels=False),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
         )
         
-        # Envolvemos el gráfico en 3 columnas asimétricas para centrarlo al 50% de la pantalla
         col_eq_izq, col_eq_centro, col_eq_der = st.columns([1, 2, 1])
         with col_eq_centro:
             st.plotly_chart(fig_eq, use_container_width=True)
@@ -256,29 +254,54 @@ if archivo_subido is not None:
         - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios.
         """)
 
-    # --- SOLAPA 2: LIQUIDEZ ---
+    # --- SOLAPA 2: LIQUIDEZ Y ESTRUCTURA DE COMPROMISOS ---
     with tab2:
-        st.subheader(f"Situación de Corto Plazo - Ejercicio {año_seleccionado}")
+        st.subheader(f"Situación de Corto y Largo Plazo - Ejercicio {año_seleccionado}")
         
+        # Fila 1: KPIs de Corto Plazo (Liquidez)
+        st.markdown("##### 💧 Índices de Liquidez (Corto Plazo)")
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
         col_m5.metric("Prueba Ácida (Líquida)", f"{datos_año['Prueba Acida']:.2f}")
         col_m6.metric("Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M")
         
         st.write("")
-        fig_liq = go.Figure()
-        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf'), hovertemplate="%{y:.2f}<extra></extra>"))
-        fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot'), hovertemplate="%{y:.2f}<extra></extra>"))
-        fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
-        fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=500)
-        st.plotly_chart(fig_liq, use_container_width=True)
-        if st.button("🔍 Ampliar Gráfico de Liquidez", key="btn_liq", use_container_width=True):
-            mostrar_grafico_ampliado(fig_liq)
+        # Fila 2: Nuevos KPIs de Estructura Sólida de Largo Plazo
+        st.markdown("##### ⚖️ Solvencia y Apalancamiento (Estructura de Largo Plazo)")
+        col_m11, col_m12 = st.columns(2)
+        col_m11.metric("Índice de Solvencia", f"{datos_año['Solvencia']:.2f}")
+        col_m12.metric("Efecto Palanca Financiera", f"{datos_año['Efecto Palanca']:.2f}x")
+        
+        st.write("")
+        # Gráficos simétricos de Tendencias enfrentados al 50% de ancho
+        col_t2a, col_t2b = st.columns(2)
+        
+        with col_t2a:
+            fig_liq = go.Figure()
+            fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color='#17becf'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color='#9467bd', dash='dot'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_liq.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="Límite Técnico (1.0)")
+            fig_liq.update_layout(title="Evolución Histórica de los Índices de Liquidez", yaxis_title="Índice", hovermode="x unified", height=450)
+            st.plotly_chart(fig_liq, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Liquidez", key="btn_liq", use_container_width=True):
+                mostrar_grafico_ampliado(fig_liq)
+                
+        with col_t2b:
+            # Nuevo Gráfico de Solvencia y Efecto Palanca
+            fig_solv = go.Figure()
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
+            fig_solv.update_layout(title="Evolución de Solvencia y Apalancamiento Histórico", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450)
+            st.plotly_chart(fig_solv, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Solvencia y Palanca", key="btn_solv", use_container_width=True):
+                mostrar_grafico_ampliado(fig_solv)
         
         st.info("""
         **💡 Guía de interpretación:**
         - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o de rápido vencimiento tiene la empresa para cubrir cada peso de deuda que vence dentro del año.
         - **Prueba Ácida:** Es un filtro más exigente que resta los inventarios (Bienes de cambio), evaluando si la empresa puede responder a sus deudas inmediatas utilizando únicamente caja y cuentas a cobrar rápidas.
+        - **Índice de Solvencia (Activo Total / Pasivo Total):** Evalúa la garantía global que ofrece la empresa a largo plazo. Mide si la totalidad de los bienes indexados cubre la totalidad de las obligaciones con terceros. Un ratio superior a 1.5 indica una estructura patrimonial saludable y con respaldo.
+        - **Efecto Palanca Financiera (Activo / PN):** Determina el grado de ventaja que tiene la empresa al financiarse con capital de terceros. Si este indicador es superior a 1.0, significa que la rentabilidad de los fondos invertidos supera el costo de la deuda, logrando un apalancamiento positivo que incrementa el retorno final para los socios.
         """)
 
     # --- SOLAPA 3: RENTABILIDAD ---
@@ -327,9 +350,9 @@ if archivo_subido is not None:
         
         st.info("""
         **💡 Guía de interpretación:**
-        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial.
-        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos.
+        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
+        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
+        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
         """)
 
     # --- SOLAPA 4: DUPONT ---
