@@ -302,9 +302,10 @@ if archivo_subido is not None:
                 
         with col_t2b:
             fig_solv = go.Figure()
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
-            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_solv['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
+            # SE CORRIGIÓ EL NOMBRE DEL DATAFRAME ACÁ A df_filtrado
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
+            fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
             fig_solv.update_layout(title="Evolución de Solvencia, Respaldo y Palanca", yaxis_title="Ratio / Multiplicador", hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_solv, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Solvencia y Palanca", key="btn_solv", use_container_width=True):
@@ -326,7 +327,7 @@ if archivo_subido is not None:
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M")
         col_m8.metric("Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%")
-        col_m7.metric("Rentabilidad s/ Ventas (Neto)", f"{datos_año['Margen Neto (%)']:.2f}%")
+        col_m9.metric("Rentabilidad s/ Ventas (Neto)", f"{datos_año['Margen Neto (%)']:.2f}%")
         col_m10.metric("Rentabilidad s/ PN (ROE)", f"{datos_año['ROE (%)']:.2f}%")
         
         st.write("")
