@@ -403,6 +403,7 @@ if archivo_subido is not None:
         - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
         - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
         - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
+        
         **💡 Guía de interpretación del Modelo DuPont:**
         Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
         - **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
