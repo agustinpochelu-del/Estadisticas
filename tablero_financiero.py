@@ -39,7 +39,7 @@ if archivo_subido is not None:
         st.error("⚠️ No se encontró la tabla de mapeo ('Sub Rubro' y 'Cuenta') en la hoja 'Rubros Grales'.")
         st.stop()
 
-    # Función motor para sumar dinámicamente las cuentas
+    # Función motor para sumar dinámicamente las cuentas basándose en el mapeo de Excel
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
         cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
         cuentas_existing = [c for c in cuentas if c in df_datos.columns]
@@ -47,7 +47,7 @@ if archivo_subido is not None:
             return pd.Series(0, index=df_datos.index)
         return df_datos[cuentas_existing].sum(axis=1)
 
-    # --- 2. CÁLCULOS ---
+    # --- 2. MOTOR DE CÁLCULOS PRINCIPALES ---
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
     activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
@@ -59,6 +59,7 @@ if archivo_subido is not None:
     patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
+    # Prueba Ácida Estricta Acordada (Caja/Bancos + Clientes netos, sin créditos fiscales ni otros créditos)
     activo_liquido_puro = df_pivot.get('activo liquido', pd.Series(0, index=df_pivot.index))
     creditos_comerciales_puros = df_pivot.get('creditos comerciales', pd.Series(0, index=df_pivot.index))
     prueba_acida = (activo_liquido_puro + creditos_comerciales_puros) / pasivo_corriente.replace(0, pd.NA)
@@ -75,6 +76,7 @@ if archivo_subido is not None:
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
     
+    # Efecto Palanca Avanzado Acordada (GAF - Grado de Apalancamiento Financiero)
     num_palanca = resultado_neto / patrimonio_neto.replace(0, pd.NA)
     den_palanca = (resultado_neto + df_pivot.get('Intereses Financieros', 0)) / (patrimonio_neto + pasivo_no_corriente).replace(0, pd.NA)
     efecto_palanca = num_palanca / den_palanca.replace(0, pd.NA)
@@ -127,7 +129,7 @@ if archivo_subido is not None:
     
     st.divider()
     
-    # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS
+    # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS (DA MÁS ESPACIO LATERAL)
     config_leyenda_abajo = dict(
         orientation="h",
         yanchor="top",
@@ -136,18 +138,19 @@ if archivo_subido is not None:
         x=0.5
     )
     
-    # --- 3. ESTRUCTURA DE SOLAPAS ---
+    # --- 3. ESTRUCTURA DE SOLAPAS DE PRESENTACIÓN ---
     tab1, tab2, tab3, tab4 = st.tabs([
         "🏛️ Estructura Patrimonial", 
-        "💧 Liquidez y Corto Plazo", 
+        "💧 Liquidez y Compromisos", 
         "📈 Rentabilidad Económica", 
         "🎯 Análisis DuPont (ROE)"
     ])
     
-    # --- SOLAPA 1: PATRIMONIO ---
+    # --- SOLAPA 1: PATRIMONIO (FOTO DEL BALANCE) ---
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
+        # Auxiliar de herramientas dinámicas para los bloques del gráfico (HTML)
         def armar_texto_hover(sub_rubro_nombre):
             cuentas = df_mapeo[df_mapeo['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
             lineas = f"<b>{sub_rubro_nombre.upper()}</b><br>"
@@ -186,8 +189,10 @@ if archivo_subido is not None:
         st.markdown(f"<h5 style='text-align: center;'>📋 Esquema Estructural del Balance (Ecuación Patrimonial)</h5>", unsafe_allow_html=True)
         
         fig_eq = go.Figure()
+        
+        # LADO IZQUIERDO: Inversión (Corriente ARRIBA, No Corriente ABAJO)
         fig_eq.add_trace(go.Bar(
-            x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo No Corriente']],
+            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo No Corriente']],
             name='Activo No Corriente', marker_color='#a1d99b',
             text=f"<b>ACTIVO NO CORRIENTE</b><br>(Bienes de Uso)<br><br>$ {datos_año['Activo No Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
@@ -195,7 +200,7 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Activo No Corriente')
         ))
         fig_eq.add_trace(go.Bar(
-            x=['INVERSIÓN<br>(ACTIVO)'], y=[datos_año['Activo Corriente']],
+            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo Corriente']],
             name='Activo Corriente', marker_color='#2ca02c',
             text=f"<b>ACTIVO CORRIENTE</b><br><br>$ {datos_año['Activo Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
@@ -203,8 +208,9 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Activo Corriente')
         ))
         
+        # LADO DERECHO: Financiamiento (Pasivo Corriente ARRIBA, Pasivo No Corriente MEDIO, PN ABAJO)
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Patrimonio Neto']],
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Patrimonio Neto']],
             name='Patrimonio Neto', marker_color='#1f77b4',
             text=f"<b>PATRIMONIO NETO</b><br><br>$ {datos_año['Patrimonio Neto']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
@@ -212,7 +218,7 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Patrimonio Neto')
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Pasivo No Corriente']],
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']],
             name='Pasivo No Corriente', marker_color='#ffbb78',
             text=f"<b>PASIVO NO CORRIENTE</b><br><br>$ {datos_año['Pasivo No Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
@@ -220,7 +226,7 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Pasivo no Corriente')
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO<br>(PASIVO + P.N.)'], y=[datos_año['Pasivo Corriente']],
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo Corriente']],
             name='Pasivo Corriente', marker_color='#ff7f0e',
             text=f"<b>PASIVO CORRIENTE</b><br><br>$ {datos_año['Pasivo Corriente']:,.2f} M",
             textposition='inside', insidetextanchor='middle',
@@ -228,10 +234,11 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Pasivo Corriente')
         ))
         
+        # Modificación Acordada: bargap=0 y tickvals=[] para remover textos del eje X redundantes
         fig_eq.update_layout(
             barmode='stack', bargap=0, showlegend=False, height=450, 
-            margin=dict(t=30, b=50, l=20, r=20),
-            xaxis=dict(showgrid=False, zeroline=False, showline=False, tickfont=dict(size=14, color='black')),
+            margin=dict(t=30, b=20, l=20, r=20),
+            xaxis=dict(showgrid=False, zeroline=False, showline=False, tickvals=[], ticktext=[]),
             yaxis=dict(showgrid=False, zeroline=False, showline=False, showticklabels=False),
             plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
         )
@@ -270,7 +277,7 @@ if archivo_subido is not None:
         - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios.
         """)
 
-    # --- SOLAPA 2: LIQUIDEZ Y ESTRUCTURA DE COMPROMISOS ---
+    # --- SOLAPA 2: LIQUIDEZ Y RESPALDO (SOLVENCIA, GARANTÍA Y PALANCA) ---
     with tab2:
         st.subheader(f"Situación de Corto y Largo Plazo - Ejercicio {año_seleccionado}")
         
@@ -302,7 +309,6 @@ if archivo_subido is not None:
                 
         with col_t2b:
             fig_solv = go.Figure()
-            # SE CORRIGIÓ EL NOMBRE DEL DATAFRAME ACÁ A df_filtrado
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Índice de Solvencia', line=dict(width=3, color='#bcbd22'), hovertemplate="%{y:.2f}<extra></extra>"))
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], mode='lines+markers', name='Índice de Garantía', line=dict(width=3, color='#1f77b4', dash='dash'), hovertemplate="%{y:.2f}<extra></extra>"))
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Efecto Palanca'], mode='lines+markers', name='Efecto Palanca (GAF)', line=dict(width=3, color='#e377c2', dash='dot'), hovertemplate="%{y:.2f}x<extra></extra>"))
@@ -320,7 +326,7 @@ if archivo_subido is not None:
         - **Efecto Palanca Financiera (GAF):** Utiliza la fórmula avanzada de rentabilidad. Mide la relación entre el ROE y el rendimiento del capital permanente. Un valor superior a 1.0 demuestra un apalancamiento positivo: la deuda externa se tomó a un costo menor que el rendimiento del negocio, multiplicando la utilidad final para el socio.
         """)
 
-    # --- SOLAPA 3: RENTABILIDAD ---
+    # --- SOLAPA 3: RENTABILIDAD ECONÓMICA (LA PELÍCULA DE LOS RESULTADOS) ---
     with tab3:
         st.subheader(f"Rendimiento Económico - Ejercicio {año_seleccionado}")
         
@@ -371,7 +377,7 @@ if archivo_subido is not None:
         - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
         """)
 
-    # --- SOLAPA 4: DUPONT ---
+    # --- SOLAPA 4: MODELO DUPONT ---
     with tab4:
         st.subheader(f"Descomposición del ROE (Esquema DuPont) - Ejercicio {año_seleccionado}")
         
