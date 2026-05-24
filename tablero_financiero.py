@@ -20,8 +20,7 @@ config_leyenda_abajo = dict(
 
 # --- BARRA LATERAL (SIDEBAR): CONTROL TOTAL DE LA APLICACIÓN ---
 with st.sidebar:
-    st.subheader("⚙️ Configuración del Tablero")
-    
+        
     # Punto 3: Volvemos al cargador directo tradicional, sin expander
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     
@@ -67,8 +66,7 @@ with st.sidebar:
         lista_años = sorted(df_pivot.index.tolist())
 
         st.markdown("---")
-        st.subheader("⏱️ Períodos")
-        año_seleccionado = st.selectbox(
+            año_seleccionado = st.selectbox(
             "Ejercicio Económico:",
             options=sorted(lista_años, reverse=True),
             index=0
