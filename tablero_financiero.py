@@ -20,13 +20,13 @@ config_leyenda_abajo = dict(
 
 # --- BARRA LATERAL (SIDEBAR): CONTROL TOTAL DE LA APLICACIÓN ---
 with st.sidebar:
-    # Carga directa del archivo en el margen superior
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     
-    nombre_empresa = "Moreni Hnos SRL"
-    cuit_empresa = "30-71153548-5"
-    domicilio_empresa = "Puerto Madryn"
-    cierre_empresa = "31/10"
+    # Inicialización genérica (Sustituye cualquier dato fijo de empresa)
+    nombre_empresa = "Empresa no identificada"
+    cuit_empresa = ""
+    domicilio_empresa = ""
+    cierre_empresa = ""
     leyenda_ipc = ""
 
     if archivo_subido is not None:
@@ -35,10 +35,17 @@ with st.sidebar:
             df_empresa_raw = pd.read_excel(archivo_subido, sheet_name="Datos Empresa", header=None)
             dict_empresa = dict(zip(df_empresa_raw[0].astype(str).str.strip(), df_empresa_raw[1]))
             
-            nombre_empresa = dict_empresa.get("Empresa", "Moreni Hnos SRL")
-            cuit_empresa = dict_empresa.get("CUIT", "30-71153548-5")
-            domicilio_empresa = dict_empresa.get("Domicilio", "Puerto Madryn")
-            cierre_empresa = dict_empresa.get("Cierre Ejercicio", "31/10")
+            nombre_empresa = dict_empresa.get("Empresa", "Empresa Registrada")
+            cuit_empresa = dict_empresa.get("CUIT", "")
+            domicilio_empresa = dict_empresa.get("Domicilio", "")
+            
+            # Formateo estricto de la fecha de cierre (Elimina la hora si viene como Timestamp)
+            raw_cierre = dict_empresa.get("Cierre Ejercicio", "")
+            if pd.api.types.is_datetime64_any_dtype(pd.Series([raw_cierre])) or isinstance(raw_cierre, (pd.Timestamp, np.datetime64)):
+                cierre_empresa = pd.to_datetime(raw_cierre).strftime('%Y-%m-%d')
+            else:
+                cierre_empresa = str(raw_cierre).split(" ")[0] if " " in str(raw_cierre) else str(raw_cierre)
+                
         except Exception:
             pass
 
@@ -57,7 +64,7 @@ with st.sidebar:
                 año_ipc = ultima_fecha_ipc.year
                 leyenda_ipc = f"Los datos monetarios están actualizados al {mes_palabra} de {año_ipc}"
         except Exception:
-            leyenda_ipc = "Los datos monetarios están actualizados a Octubre de 2025"
+            leyenda_ipc = ""
 
         # --- PROCESAMIENTO BASE PARA SELECTORES ---
         df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
@@ -65,7 +72,6 @@ with st.sidebar:
         lista_años = sorted(df_pivot.index.tolist())
 
         st.markdown("---")
-        # Selectores limpios directos, sin subheaders redundantes
         año_seleccionado = st.selectbox(
             "Ejercicio Económico:",
             options=sorted(lista_años, reverse=True),
@@ -92,7 +98,8 @@ with st.sidebar:
         st.markdown("---")
         if leyenda_ipc:
             st.caption(f"ℹ️ {leyenda_ipc}")
-        st.caption(f"📅 Cierre: {cierre_empresa}")
+        if cierre_empresa:
+            st.caption(f"📅 Cierre: {cierre_empresa}")
 
 
 # --- CUERPO PRINCIPAL TOTALMENTE DEDICADO AL INFORME ---
@@ -118,7 +125,7 @@ if archivo_subido is not None:
 
     # Variables y Ratios
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
-    activo_no_corriente = sumar_sub_rubro(df_mapeo, df_mapeo, 'Activo No Corriente') if False else sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
+    activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
     pasivo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo Corriente')
     pasivo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo no Corriente')
@@ -180,7 +187,7 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Título Institucional unificado
+    # Título Institucional unificado y dinámico
     st.title(f"🏢 {nombre_empresa} | Tablero de Control Financiero")
     st.markdown(f"#### {solapa_seleccionada} | Ejercicio Económico Seleccionado: {año_seleccionado}")
     st.write("")
@@ -201,7 +208,6 @@ if archivo_subido is not None:
         st.write("")
         fig_eq = go.Figure()
         
-        # Ajustes del Gráfico: nombres de eje X limpios ('Activo' y 'Pasivo + PN') con los valores internos legibles
         fig_eq.add_trace(go.Bar(
             x=['Activo'], y=[datos_año['Activo No Corriente']], 
             name='Activo No Corriente', marker_color='#a1d99b', 
