@@ -22,9 +22,8 @@ config_leyenda_abajo = dict(
 with st.sidebar:
     st.subheader("⚙️ Configuración del Tablero")
     
-    # Punto 3: Achicamos el cargador metiéndolo en un expander colapsable
-    with st.expander("📁 Cargar Archivo Excel", expanded=True):
-        archivo_subido = st.file_uploader("Subí el archivo (.xlsx)", type=["xlsx"], label_visibility="collapsed")
+    # Punto 3: Volvemos al cargador directo tradicional, sin expander
+    archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     
     nombre_empresa = "Moreni Hnos SRL"
     cuit_empresa = "30-71153548-5"
@@ -184,7 +183,7 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Punto 2: Nombre de la empresa integrado de forma limpia y destacada en el título general
+    # Nombre de la empresa integrado de forma limpia en el título principal
     st.title(f"🏢 {nombre_empresa} | Tablero de Control Financiero")
     st.markdown(f"#### {solapa_seleccionada} | Ejercicio Económico Seleccionado: {año_seleccionado}")
     st.write("")
@@ -204,11 +203,39 @@ if archivo_subido is not None:
         
         st.write("")
         fig_eq = go.Figure()
-        fig_eq.add_trace(go.Bar(x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo No Corriente']], name='Activo No Corriente', marker_color='#a1d99b', marker=dict(line=dict(color='#222', width=2))))
-        fig_eq.add_trace(go.Bar(x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo Corriente']], name='Activo Corriente', marker_color='#2ca02c', marker=dict(line=dict(color='#222', width=2))))
-        fig_eq.add_trace(go.Bar(x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Patrimonio Neto']], name='Patrimonio Neto', marker_color='#1f77b4', marker=dict(line=dict(color='#222', width=2))))
-        fig_eq.add_trace(go.Bar(x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']], name='Pasivo No Corriente', marker_color='#ffbb78', marker=dict(line=dict(color='#222', width=2))))
-        fig_eq.add_trace(go.Bar(x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo Corriente']], name='Pasivo Corriente', marker_color='#ff7f0e', marker=dict(line=dict(color='#222', width=2))))
+        
+        # Corrección: Agregamos texttemplate y textposition para que exponga los valores fijos en M
+        fig_eq.add_trace(go.Bar(
+            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo No Corriente']], 
+            name='Activo No Corriente', marker_color='#a1d99b', 
+            text=[datos_año['Activo No Corriente']], texttemplate="<b>Activo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2))
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo Corriente']], 
+            name='Activo Corriente', marker_color='#2ca02c', 
+            text=[datos_año['Activo Corriente']], texttemplate="<b>Activo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2))
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Patrimonio Neto']], 
+            name='Patrimonio Neto', marker_color='#1f77b4', 
+            text=[datos_año['Patrimonio Neto']], texttemplate="<b>Patrimonio Neto</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2))
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']], 
+            name='Pasivo No Corriente', marker_color='#ffbb78', 
+            text=[datos_año['Pasivo No Corriente']], texttemplate="<b>Pasivo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2))
+        ))
+        fig_eq.add_trace(go.Bar(
+            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo Corriente']], 
+            name='Pasivo Corriente', marker_color='#ff7f0e', 
+            text=[datos_año['Pasivo Corriente']], texttemplate="<b>Pasivo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
+            marker=dict(line=dict(color='#222', width=2))
+        ))
+        
         fig_eq.update_layout(barmode='stack', bargap=0, showlegend=False, height=420, margin=dict(t=10, b=10), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
         
         col_eq_izq, col_eq_centro, col_eq_der = st.columns([1, 2, 1])
@@ -238,7 +265,6 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
                 mostrar_grafico_ampliado(fig_act)
 
-        # Punto 1: Recuperamos las explicaciones patrimoniales
         st.info("""
         **💡 Guía de Interpretación Patrimonial:**
         - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
@@ -277,7 +303,6 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Solvencia", key="btn_solv", use_container_width=True):
                 mostrar_grafico_ampliado(fig_solv)
 
-        # Punto 1: Recuperamos explicaciones de liquidez
         st.info("""
         **💡 Guía de Interpretación de Liquidez y Cobertura:**
         - **Liquidez Corriente:** Capacidad de cobertura de compromisos inmediatos. Valores menores a 1.0 alertan posibles tensiones de caja en el corto plazo.
@@ -313,7 +338,6 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Rotaciones", key="btn_rot_ampliar", use_container_width=True):
                 mostrar_grafico_ampliado(fig_rot_act)
 
-        # Punto 1: Recuperamos explicaciones de eficiencia operativa
         st.info("""
         **💡 Guía de Interpretación de Ciclos Operativos y Rotación:**
         - **Déficit Estructural de Giro:** Si la suma de *Plazo de Cobro + Días de Stock* excede con holgura los *Días de Pago*, la empresa genera un descalce financiero que consume recursos líquidos propios.
@@ -354,7 +378,6 @@ if archivo_subido is not None:
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont_rentabilidad", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont_rent)
 
-        # Punto 1: Recuperamos explicaciones del DuPont y rentabilidad
         st.info("""
         **💡 Guía de Interpretación del Modelo DuPont:**
         Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
