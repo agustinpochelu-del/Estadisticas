@@ -426,7 +426,12 @@ if archivo_subido is not None:
             mostrar_grafico_ampliado(fig_dupont)
             
         st.plotly_chart(fig_dupont, use_container_width=True)
-        if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont", use_container_width=True):
+        # (Líneas anteriores del gráfico fig_dupont...)
+        
+        st.plotly_chart(fig_dupont, use_container_width=True)
+        
+        # CAMBIAR ACÁ: Le agregamos un sufijo único a la key para evitar el duplicado
+        if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont_rentabilidad", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont)
         
         st.info("""
