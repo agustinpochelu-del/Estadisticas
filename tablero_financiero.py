@@ -20,12 +20,15 @@ config_leyenda_abajo = dict(
 
 # --- BARRA LATERAL (SIDEBAR): CONTROL TOTAL DE LA APLICACIÓN ---
 with st.sidebar:
-    # 1. Selector de Archivo en la barra lateral
-    archivo_subido = st.file_uploader("Subí el archivo Excel de Balances (.xlsx)", type=["xlsx"])
+    st.subheader("⚙️ Configuración del Tablero")
+    
+    # Punto 3: Achicamos el cargador metiéndolo en un expander colapsable
+    with st.expander("📁 Cargar Archivo Excel", expanded=True):
+        archivo_subido = st.file_uploader("Subí el archivo (.xlsx)", type=["xlsx"], label_visibility="collapsed")
     
     nombre_empresa = "Moreni Hnos SRL"
     cuit_empresa = "30-71153548-5"
-    domicilio_empresa = "Parque Pesquero Municipal N.º 357 mza. 14 parcela 5 – Puerto Madryn"
+    domicilio_empresa = "Puerto Madryn"
     cierre_empresa = "31/10"
     leyenda_ipc = ""
 
@@ -45,14 +48,10 @@ with st.sidebar:
         # --- EXTRACCIÓN DE LA ÚLTIMA FECHA DE IPC ---
         try:
             df_ipc = pd.read_excel(archivo_subido, sheet_name="IPC")
-            # Forzamos la columna MES a formato fecha
             df_ipc['MES'] = pd.to_datetime(df_ipc['MES'])
-            # Filtramos filas donde el IPC no sea nulo para buscar la última real
             df_ipc_valido = df_ipc.dropna(subset=['IPC NACIONAL EMPALME IPIM'])
             if not df_ipc_valido.empty:
                 ultima_fecha_ipc = df_ipc_valido['MES'].max()
-                
-                # Mapeo de meses en español para el formato solicitado
                 meses_es = {
                     1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio",
                     7: "Julio", 8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
@@ -61,42 +60,32 @@ with st.sidebar:
                 año_ipc = ultima_fecha_ipc.year
                 leyenda_ipc = f"Los datos monetarios están actualizados al {mes_palabra} de {año_ipc}"
         except Exception:
-            # Fallback manual basado en tus datos de base si falla la lectura
             leyenda_ipc = "Los datos monetarios están actualizados a Octubre de 2025"
 
-    st.markdown("---")
-    # Título de la empresa destacado en grande
-    st.markdown(f"<h2 style='margin-bottom: 0px;'>🏢 {nombre_empresa}</h2>", unsafe_allow_html=True)
-    st.markdown(f"**CUIT:** {cuit_empresa}")
-    st.markdown(f"📍 *{domicilio_empresa}*")
-    st.markdown("---")
-
-    # Si hay archivo cargado, renderizamos los selectores temporales y de solapas en la barra lateral
-    if archivo_subido is not None:
         # --- PROCESAMIENTO BASE PARA SELECTORES ---
         df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
         df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
         lista_años = sorted(df_pivot.index.tolist())
 
-        st.subheader("⏱️ Períodos de Análisis")
+        st.markdown("---")
+        st.subheader("⏱️ Períodos")
         año_seleccionado = st.selectbox(
-            "Seleccionar Ejercicio Económico:",
+            "Ejercicio Económico:",
             options=sorted(lista_años, reverse=True),
             index=0
         )
         
         rango_años = st.slider(
-            "Rango de Tendencia Histórica:",
+            "Tendencia Histórica:",
             min_value=int(min(lista_años)),
             max_value=int(max(lista_años)),
             value=(int(min(lista_años)), int(max(lista_años)))
         )
         
         st.markdown("---")
-        st.subheader("📂 Navegación de Informes")
-        # El selector de solapas vive ahora acá en la barra lateral
+        st.subheader("📂 Reportes")
         solapa_seleccionada = st.radio(
-            "Seleccioná la sección a revisar:",
+            "Seleccioná la sección:",
             options=[
                 "🏛️ Estructura Patrimonial", 
                 "💧 Liquidez y Corto Plazo", 
@@ -106,13 +95,13 @@ with st.sidebar:
         )
         st.markdown("---")
         if leyenda_ipc:
-            st.info(f"ℹ️ {leyenda_ipc}")
-        st.caption(f"📅 Cierre de Ejercicio: {cierre_empresa}")
+            st.caption(f"ℹ️ {leyenda_ipc}")
+        st.caption(f"📅 Cierre: {cierre_empresa}")
 
 
 # --- CUERPO PRINCIPAL TOTALMENTE DEDICADO AL INFORME ---
 if archivo_subido is not None:
-    # --- 2. MOTOR DE CÁLCULOS PRINCIPALES ---
+    # --- MOTOR DE CÁLCULOS PRINCIPALES ---
     df_rubros_raw = pd.read_excel(archivo_subido, sheet_name="Rubros Grales", header=None)
     try:
         fila_inicio = df_rubros_raw[df_rubros_raw[0] == 'Sub Rubro'].index[0]
@@ -195,12 +184,12 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Cabecera Limpia del Cuerpo Principal
-    st.title("📈 Tablero de Control Financiero y Gestión")
-    st.markdown(f"### {solapa_seleccionada} | Ejercicio Económico: {año_seleccionado}")
+    # Punto 2: Nombre de la empresa integrado de forma limpia y destacada en el título general
+    st.title(f"🏢 {nombre_empresa} | Tablero de Control Financiero")
+    st.markdown(f"#### {solapa_seleccionada} | Ejercicio Económico Seleccionado: {año_seleccionado}")
     st.write("")
 
-    # --- ENRUTADOR DE CONTENIDO BASADO EN EL RADIO DE LA SIDEBAR ---
+    # --- ENRUTADOR DE CONTENIDO ---
     if solapa_seleccionada == "🏛️ Estructura Patrimonial":
         col_a1, col_a2, col_a3 = st.columns(3)
         col_a1.metric("Activo Total", f"$ {datos_año['Activo Total']:,.2f} M")
@@ -249,6 +238,13 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
                 mostrar_grafico_ampliado(fig_act)
 
+        # Punto 1: Recuperamos las explicaciones patrimoniales
+        st.info("""
+        **💡 Guía de Interpretación Patrimonial:**
+        - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
+        - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
+        """)
+
     elif solapa_seleccionada == "💧 Liquidez y Corto Plazo":
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
@@ -281,6 +277,14 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Solvencia", key="btn_solv", use_container_width=True):
                 mostrar_grafico_ampliado(fig_solv)
 
+        # Punto 1: Recuperamos explicaciones de liquidez
+        st.info("""
+        **💡 Guía de Interpretación de Liquidez y Cobertura:**
+        - **Liquidez Corriente:** Capacidad de cobertura de compromisos inmediatos. Valores menores a 1.0 alertan posibles tensiones de caja en el corto plazo.
+        - **Prueba Ácida Filtrada:** Excluye rigurosamente inventarios y créditos fiscales. Mide el verdadero respaldo monetario neto y los créditos de cobranza pura frente al pasivo comercial exigible.
+        - **Efecto Palanca (GAF):** Un índice mayor a 1.0 indica un apalancamiento financiero positivo: el costo del capital de terceros es menor que la rentabilidad operativa del negocio.
+        """)
+
     elif solapa_seleccionada == "🔄 Rotaciones y Ciclos":
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días")
@@ -308,6 +312,13 @@ if archivo_subido is not None:
             st.plotly_chart(fig_rot_act, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Rotaciones", key="btn_rot_ampliar", use_container_width=True):
                 mostrar_grafico_ampliado(fig_rot_act)
+
+        # Punto 1: Recuperamos explicaciones de eficiencia operativa
+        st.info("""
+        **💡 Guía de Interpretación de Ciclos Operativos y Rotación:**
+        - **Déficit Estructural de Giro:** Si la suma de *Plazo de Cobro + Días de Stock* excede con holgura los *Días de Pago*, la empresa genera un descalce financiero que consume recursos líquidos propios.
+        - **Rotación de Activo Corriente:** Determina la cantidad de veces que el capital operativo "da la vuelta" en el año fiscal para materializar las ventas registradas.
+        """)
 
     elif solapa_seleccionada == "📈 Rentabilidad Económica":
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
@@ -342,5 +353,14 @@ if archivo_subido is not None:
         st.plotly_chart(fig_dupont_rent, use_container_width=True)
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont_rentabilidad", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont_rent)
+
+        # Punto 1: Recuperamos explicaciones del DuPont y rentabilidad
+        st.info("""
+        **💡 Guía de Interpretación del Modelo DuPont:**
+        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
+        1. **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
+        2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
+        3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de deudas sobre el capital aportado.
+        """)
 else:
-    st.info("👆 Por favor, subí el archivo Excel (.xlsx) en el selector de la barra lateral izquierda para comenzar el análisis.")
+    st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
