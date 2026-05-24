@@ -474,7 +474,7 @@ if archivo_subido is not None:
         - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
        
-       # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
+     # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS (OPTIMIZADA) ---
     with tab_rotaciones:
         st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
         
@@ -482,7 +482,7 @@ if archivo_subido is not None:
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días", 
                       help="Promedio de días que transcurren desde que se factura un servicio o venta hasta que se cobra efectivamente.")
-        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} days" if 'days' in f"{datos_año['Dias Inventario']}" else f"{datos_año['Dias Inventario']:.0f} días", 
+        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} días", 
                       help="Días promedio que la mercadería/materiales permanecen en el activo antes de ser vendidos. Calculado sobre CMV.")
         col_r3.metric("Plazo Medio de Pago a Proveedores", f"{datos_año['Dias Pago']:.0f} días", 
                       help="Plazo promedio de financiación comercial obtenido de los proveedores de bienes y servicios.")
@@ -490,33 +490,38 @@ if archivo_subido is not None:
         st.write("")
         col_tr1, col_tr2 = st.columns(2)
         
-       # --- REEMPLAZO: CONTROL DE OUTLIERS EN EL EJE Y ---
         with col_tr1:
             st.markdown("##### ⏱️ Evolución Temporal del Ciclo Operativo (Días)")
             fig_ciclos = go.Figure()
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3)))
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3)))
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash')))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3), hovertemplate="Plazo Cobro: %{y:.2f} días<extra></extra>"))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3), hovertemplate="Plazo Stock: %{y:.2f} días<extra></extra>"))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash'), hovertemplate="Plazo Pago: %{y:.2f} días<extra></extra>"))
             
-            # CORRECCIÓN ACÁ: Forzamos al eje Y a no estirarse por culpa del año 2018
             fig_ciclos.update_layout(
                 yaxis_title="Días Corridos", 
-                yaxis=dict(range=[0, 365], showgrid=True), # <--- Ajustá a 500 si querés más margen
-                hovermode="x unified", 
-                height=450, 
-                legend=config_leyenda_abajo
+                yaxis=dict(range=[0, 365], showgrid=True),
+                hovermode="x unified", height=450, legend=config_leyenda_abajo
             )
             st.plotly_chart(fig_ciclos, use_container_width=True)
+            
+            # Botón Fullscreen para Ciclos
+            if st.button("🔍 Ampliar Gráfico de Ciclos", key="btn_ciclos_ampliar", use_container_width=True):
+                mostrar_grafico_ampliado(fig_ciclos)
             
         with col_tr2:
             st.markdown("##### 🔄 Intensidad de Rotación de Activos (Tendencia en Veces)")
             fig_rot_act = go.Figure()
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color='#2ca02c', width=3)))
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color='#9467bd', width=2, dash='dash')))
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], mode='lines+markers', name='Rot. Bienes de Uso', line=dict(color='#bcbd22', width=2, dash='dot')))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color='#2ca02c', width=3), hovertemplate="Rot. Activo Total: %{y:.2f}x<extra></extra>"))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color='#9467bd', width=2, dash='dash'), hovertemplate="Rot. Activo Corriente: %{y:.2f}x<extra></extra>"))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], mode='lines+markers', name='Rot. Bienes de Uso', line=dict(color='#bcbd22', width=2, dash='dot'), hovertemplate="Rot. Bienes de Uso: %{y:.2f}x<extra></extra>"))
+            
             fig_rot_act.update_layout(yaxis_title="Veces de Rotación al Año", hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_rot_act, use_container_width=True)
             
+            # Botón Fullscreen para Rotaciones
+            if st.button("🔍 Ampliar Gráfico de Rotaciones", key="btn_rot_ampliar", use_container_width=True):
+                mostrar_grafico_ampliado(fig_rot_act)
+
         st.info("""
         **💡 Lectura Gerencial del Ciclo Operativo:**
         * **El Descalce Financiero:** Si la suma de *Plazo de Cobro + Plazo de Stock* es mayor al *Plazo de Pago*, la empresa tiene un déficit estructural de capital de trabajo que debe financiar con caja propia o bancaria.
