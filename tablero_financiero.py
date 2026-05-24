@@ -85,29 +85,30 @@ if archivo_subido is not None:
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
 
-    # --- MOTOR DE CÁLCULOS: ROTACIONES Y CICLOS PROFESIONALES ---
+# --- MOTOR DE CÁLCULOS: CORRECCIÓN DE VARIABLES DE ROTACIÓN ---
     # 1. Extracción de Rubros del df_pivot (con salvavidas de ceros)
-    activo_corriente = df_pivot.get('Activo Corriente', pd.Series(0, index=df_pivot.index))
+    activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
+    activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
+    activo_total = activo_corriente + activo_no_corriente
+    
     bienes_de_uso = df_pivot.get('Bienes de Uso', pd.Series(0, index=df_pivot.index))
     bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
     deudas_comerciales = df_pivot.get('Deudas comerciales', pd.Series(0, index=df_pivot.index))
     
-    # Cuenta de Resultados incorporada de tu Excel
+    # Cuenta de Resultados de tu Excel
     cmv = df_pivot.get('Costo Mercaderia Vendida', pd.Series(0, index=df_pivot.index))
-    # Si en algún año viejo el CMV es cero, usamos Ventas temporalmente para ese año aislado
     cmv_seguro = np.where(cmv == 0, ventas, cmv)
 
-    # 2. Ratios de Rotación (Veces al año)
-    rot_activo_total = ventas / activo.replace(0, pd.NA)
+    # 2. Ratios de Rotación Corregidos (Veces al año)
+    rot_activo_total = ventas / activo_total.replace(0, pd.NA)
     rot_activo_corriente = ventas / activo_corriente.replace(0, pd.NA)
-    rot_bienes_uso = ventas / bienes_uso.replace(0, pd.NA) if 'bienes_uso' in locals() else (ventas / bienes_de_uso.replace(0, pd.NA))
+    rot_bienes_uso = ventas / bienes_de_uso.replace(0, pd.NA)
     rot_inventarios = cmv_seguro / bienes_de_cambio.replace(0, pd.NA)
 
-    # 3. Plazos Medios (Expresados en Días de calendario)
+    # 3. Plazos Medios (Días)
     dias_cobro = (creditos_comerciales_puros / ventas.replace(0, pd.NA)) * 365
     dias_inventario = (bienes_de_cambio / cmv_seguro.replace(0, pd.NA)) * 365
     dias_pago = (deudas_comerciales / cmv_seguro.replace(0, pd.NA)) * 365
-
     # Consolidación en DataFrame (Expresando valores monetarios en Millones)
     df_kpis = pd.DataFrame({
         'Activo Corriente': activo_corriente / 1e6, 
