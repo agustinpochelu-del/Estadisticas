@@ -471,8 +471,8 @@ if archivo_subido is not None:
         - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
        
-    # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
-    with tab_rotaciones:
+        # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
+        with tab_rotaciones:
         st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
         
         # Fila de KPIs de Plazos Medios
