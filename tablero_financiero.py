@@ -473,7 +473,7 @@ if archivo_subido is not None:
         """)
        
         # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
-        with tab_rotaciones:
+    with tab_rotaciones:
         st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
         
         # Fila de KPIs de Plazos Medios
