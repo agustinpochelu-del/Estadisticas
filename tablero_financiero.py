@@ -265,12 +265,15 @@ if archivo_subido is not None:
                 hovertemplate="Nivel de Salud: %{r:.1f}/100<extra></extra>"
             ))
             
+           # --- CORRECCIÓN: ELIMINADO EL PARÁMETRO BOLD DE TICKFONT ---
             fig_radar.update_layout(
                 polar=dict(
                     radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
-                    angularaxis=dict(tickfont=dict(size=12, bold=True))
+                    angularaxis=dict(tickfont=dict(size=12)) # <--- Limpiado acá
                 ),
-                showlegend=False, height=450, margin=dict(t=30, b=20, l=40, r=40)
+                showlegend=False, 
+                height=450, 
+                margin=dict(t=30, b=20, l=40, r=40)
             )
             st.plotly_chart(fig_radar, use_container_width=True)
             if st.button("🔍 Ampliar Radar de Diagnóstico", key="btn_radar_ampliar", use_container_width=True):
