@@ -129,8 +129,10 @@ if archivo_subido is not None:
         'EBITDA Proxy': ebitda_proxy / 1e6,
         'Margen Neto (%)': margen_neto, 
         'Margen EBITDA (%)': margen_ebitda,
+       # ... (líneas anteriores del diccionario)
         'ROE (%)': roe, 
-        'Rotacion Activos': rotacion_activos,
+        'Rotacion Activos': rotacion_activos, 
+        'Multiplicador Capital': multiplicador_capital, # <--- AGREGAR ESTA COMA ACÁ
         'Rotacion Activo Total': rot_activo_total,
         'Rotacion Activo Corriente': rot_activo_corriente,
         'Rotacion Bienes Uso': rot_bienes_uso,
@@ -138,7 +140,6 @@ if archivo_subido is not None:
         'Dias Cobro': dias_cobro,
         'Dias Inventario': dias_inventario,
         'Dias Pago': dias_pago
-        'Multiplicador Capital': multiplicador_capital
     }).dropna(how='all').round(2)
 
     # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
