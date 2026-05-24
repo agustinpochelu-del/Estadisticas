@@ -39,6 +39,22 @@ if archivo_subido is not None:
         st.error("⚠️ No se encontró la tabla de mapeo ('Sub Rubro' y 'Cuenta') en la hoja 'Rubros Grales'.")
         st.stop()
 
+    # --- CARGA DE DATOS DE LA EMPRESA ---
+    try:
+        df_empresa = pd.read_csv("Base Informe.xlsx - Datos Empresa.csv", header=None)
+        # Convertimos a diccionario para buscar directo por clave
+        dict_empresa = dict(zip(df_empresa[0], df_empresa[1]))
+        
+        nombre_empresa = dict_empresa.get("Empresa", "Empresa Registrada")
+        cuit_empresa = dict_empresa.get("CUIT", "Sin CUIT")
+        domicilio_empresa = dict_empresa.get("Domicilio", "Sin Domicilio")
+        cierre_empresa = dict_empresa.get("Cierre Ejercicio", "")
+    except Exception:
+        nombre_empresa = "Moreni Hnos SRL"
+        cuit_empresa = "30-71153548-5"
+        domicilio_empresa = "Parque Pesquero Municipal N.º 357 mza. 14 parcela 5 – Puerto Madryn"
+        cierre_empresa = "2026-10-31"
+
     # Función motor para sumar dinámicamente las cuentas basándose en el mapeo de Excel
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
         cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
@@ -144,23 +160,43 @@ if archivo_subido is not None:
         'Dias Pago': dias_pago
     }).dropna(how='all').round(2)
 
-    # --- CONTROLES EN LA BARRA LATERAL (SIDEBAR) ---
-    st.sidebar.header("🔍 Filtros del Tablero")
-    
-    lista_años = sorted(df_kpis.index.tolist())
-    rango_años = st.sidebar.slider(
-        "Seleccionar Período de Análisis:",
-        min_value=int(min(lista_años)),
-        max_value=int(max(lista_años)),
-        value=(int(min(lista_años)), int(max(lista_años)))
-    )
-    
-    df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
-    
-    año_seleccionado = st.sidebar.selectbox("📅 Ejercicio para análisis puntual:", df_filtrado.index.sort_values(ascending=False).tolist())
-    datos_año = df_filtrado.loc[año_seleccionado]
-    
-    st.divider()
+   # --- BARRA LATERAL: CONTROL DE TIEMPO E IDENTIFICACIÓN CORPORATIVA ---
+    with st.sidebar:
+        # Cabecera de la Barra Lateral con la Identificación de la Empresa
+        st.markdown(f"### 🏢 {nombre_empresa}")
+        st.markdown(f"**CUIT:** {cuit_empresa}")
+        st.markdown(f"📍 *{domicilio_empresa}*")
+        
+        # Si a futuro tenés el archivo del logo (ej: logo.png) en la carpeta, 
+        # podés descomentar la línea de abajo:
+        # st.image("logo.png", use_container_width=True)
+        
+        st.markdown("---")
+        st.subheader("⏱️ Control de Períodos")
+        
+        # Selector de Año Fiscal (asumiendo que df_filtrado u otra estructura tiene los años disponibles)
+        años_disponibles = sorted(list(df_pivot.index), reverse=True)
+        año_seleccionado = st.selectbox(
+            "Seleccionar Ejercicio Económico:",
+            options=años_disponibles,
+            index=0
+        )
+        
+        st.markdown("---")
+        # Filtro de Lapso Temporal para Gráficos Históricos
+        st.subheader("📅 Rango de Análisis Histórico")
+        año_min, año_max = int(min(años_disponibles)), int(max(años_disponibles))
+        
+        lapso_temporal = st.slider(
+            "Años a incluir en las tendencias:",
+            min_value=año_min,
+            max_value=año_max,
+            value=(año_min, año_max)
+        )
+        
+        st.markdown("---")
+        st.caption(f"📅 Cierre de Ejercicio: {cierre_empresa}")
+        st.caption("Filtros globales aplicados en tiempo real.")
     
     # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS (DA MÁS ESPACIO LATERAL)
     config_leyenda_abajo = dict(
@@ -171,13 +207,27 @@ if archivo_subido is not None:
         x=0.5
     )
     
-  # --- 3. ESTRUCTURA DE SOLAPAS ---
+  # ... (Aquí arriba viene todo el bloque que pegamos recién de "with st.sidebar:")
+    # ... que contiene los datos de la empresa y los selectores.
+
+
+    # =========================================================================
+    # --- CUERPO PRINCIPAL DEL INFORME (PEGAR ACÁ) ---
+    # =========================================================================
+    st.title("📈 Tablero de Control Financiero y Gestión")
+    st.markdown(f"### Reporte Analítico de Gestión | Período Seleccionado: {año_seleccionado}")
+
+
+    # --- 3. ESTRUCTURA DE SOLAPAS (ESTO YA LO TENÉS) ---
     tab1, tab2, tab_rotaciones, tab3 = st.tabs([
         "🏛️ Estructura Patrimonial", 
         "💧 Liquidez y Corto Plazo", 
         "🔄 Rotaciones y Ciclos",
         "📈 Rentabilidad Económica"
     ])
+    
+    with tab1:
+        # ... contenido de estructura patrimonial
     
     # --- SOLAPA 1: PATRIMONIO (FOTO DEL BALANCE) ---
     with tab1:
