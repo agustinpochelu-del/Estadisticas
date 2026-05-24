@@ -20,8 +20,7 @@ config_leyenda_abajo = dict(
 
 # --- BARRA LATERAL (SIDEBAR): CONTROL TOTAL DE LA APLICACIÓN ---
 with st.sidebar:
-        
-    # Punto 3: Volvemos al cargador directo tradicional, sin expander
+    # Carga directa del archivo en el margen superior
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     
     nombre_empresa = "Moreni Hnos SRL"
@@ -66,7 +65,8 @@ with st.sidebar:
         lista_años = sorted(df_pivot.index.tolist())
 
         st.markdown("---")
-            año_seleccionado = st.selectbox(
+        # Selectores limpios directos, sin subheaders redundantes
+        año_seleccionado = st.selectbox(
             "Ejercicio Económico:",
             options=sorted(lista_años, reverse=True),
             index=0
@@ -80,7 +80,6 @@ with st.sidebar:
         )
         
         st.markdown("---")
-        st.subheader("📂 Reportes")
         solapa_seleccionada = st.radio(
             "Seleccioná la sección:",
             options=[
@@ -119,7 +118,7 @@ if archivo_subido is not None:
 
     # Variables y Ratios
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
-    activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
+    activo_no_corriente = sumar_sub_rubro(df_mapeo, df_mapeo, 'Activo No Corriente') if False else sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
     pasivo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo Corriente')
     pasivo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Pasivo no Corriente')
@@ -181,7 +180,7 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Nombre de la empresa integrado de forma limpia en el título principal
+    # Título Institucional unificado
     st.title(f"🏢 {nombre_empresa} | Tablero de Control Financiero")
     st.markdown(f"#### {solapa_seleccionada} | Ejercicio Económico Seleccionado: {año_seleccionado}")
     st.write("")
@@ -202,33 +201,33 @@ if archivo_subido is not None:
         st.write("")
         fig_eq = go.Figure()
         
-        # Corrección: Agregamos texttemplate y textposition para que exponga los valores fijos en M
+        # Ajustes del Gráfico: nombres de eje X limpios ('Activo' y 'Pasivo + PN') con los valores internos legibles
         fig_eq.add_trace(go.Bar(
-            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo No Corriente']], 
+            x=['Activo'], y=[datos_año['Activo No Corriente']], 
             name='Activo No Corriente', marker_color='#a1d99b', 
             text=[datos_año['Activo No Corriente']], texttemplate="<b>Activo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2))
         ))
         fig_eq.add_trace(go.Bar(
-            x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo Corriente']], 
+            x=['Activo'], y=[datos_año['Activo Corriente']], 
             name='Activo Corriente', marker_color='#2ca02c', 
             text=[datos_año['Activo Corriente']], texttemplate="<b>Activo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2))
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Patrimonio Neto']], 
+            x=['Pasivo + PN'], y=[datos_año['Patrimonio Neto']], 
             name='Patrimonio Neto', marker_color='#1f77b4', 
             text=[datos_año['Patrimonio Neto']], texttemplate="<b>Patrimonio Neto</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2))
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo No Corriente']], 
+            x=['Pasivo + PN'], y=[datos_año['Pasivo No Corriente']], 
             name='Pasivo No Corriente', marker_color='#ffbb78', 
             text=[datos_año['Pasivo No Corriente']], texttemplate="<b>Pasivo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2))
         ))
         fig_eq.add_trace(go.Bar(
-            x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Pasivo Corriente']], 
+            x=['Pasivo + PN'], y=[datos_año['Pasivo Corriente']], 
             name='Pasivo Corriente', marker_color='#ff7f0e', 
             text=[datos_año['Pasivo Corriente']], texttemplate="<b>Pasivo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle',
             marker=dict(line=dict(color='#222', width=2))
@@ -238,7 +237,7 @@ if archivo_subido is not None:
         
         col_eq_izq, col_eq_centro, col_eq_der = st.columns([1, 2, 1])
         with col_eq_centro:
-            st.markdown("<p style='text-align: center; font-weight: bold;'>📋 Esquema del Balance (Ecuación Patrimonial)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-weight: bold;'>📋 Esquema del Balance</p>", unsafe_allow_html=True)
             st.plotly_chart(fig_eq, use_container_width=True)
             if st.button("🔍 Ampliar Esquema del Balance", key="btn_eq", use_container_width=True):
                 mostrar_grafico_ampliado(fig_eq)
