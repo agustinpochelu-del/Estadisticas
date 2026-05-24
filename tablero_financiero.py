@@ -105,10 +105,11 @@ if archivo_subido is not None:
     rot_bienes_uso = ventas / bienes_de_uso.replace(0, pd.NA)
     rot_inventarios = cmv_seguro / bienes_de_cambio.replace(0, pd.NA)
 
-    # 3. Plazos Medios (Días)
+   # 3. Plazos Medios Corregidos (Días)
     dias_cobro = (creditos_comerciales_puros / ventas.replace(0, pd.NA)) * 365
-    dias_inventario = (bienes_de_cambio / cmv_seguro.replace(0, pd.NA)) * 365
-    dias_pago = (deudas_comerciales / cmv_seguro.replace(0, pd.NA)) * 365
+    dias_inventario = (bienes_de_cambio / pd.Series(cmv_seguro, index=df_pivot.index).replace(0, pd.NA)) * 365
+    dias_pago = (deudas_comerciales / pd.Series(cmv_seguro, index=df_pivot.index).replace(0, pd.NA)) * 365
+    
     # Consolidación en DataFrame (Expresando valores monetarios en Millones)
     df_kpis = pd.DataFrame({
         'Activo Corriente': activo_corriente / 1e6, 
