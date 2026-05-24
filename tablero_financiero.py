@@ -80,10 +80,33 @@ if archivo_subido is not None:
     num_palanca = resultado_neto / patrimonio_neto.replace(0, pd.NA)
     den_palanca = (resultado_neto + df_pivot.get('Intereses Financieros', 0)) / (patrimonio_neto + pasivo_no_corriente).replace(0, pd.NA)
     efecto_palanca = num_palanca / den_palanca.replace(0, pd.NA)
-    
+        
     roe = (resultado_neto / patrimonio_neto.replace(0, pd.NA)) * 100
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
+
+    # --- MOTOR DE CÁLCULOS: ROTACIONES Y CICLOS PROFESIONALES ---
+    # 1. Extracción de Rubros del df_pivot (con salvavidas de ceros)
+    activo_corriente = df_pivot.get('Activo Corriente', pd.Series(0, index=df_pivot.index))
+    bienes_de_uso = df_pivot.get('Bienes de Uso', pd.Series(0, index=df_pivot.index))
+    bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
+    deudas_comerciales = df_pivot.get('Deudas comerciales', pd.Series(0, index=df_pivot.index))
+    
+    # Cuenta de Resultados incorporada de tu Excel
+    cmv = df_pivot.get('Costo Mercaderia Vendida', pd.Series(0, index=df_pivot.index))
+    # Si en algún año viejo el CMV es cero, usamos Ventas temporalmente para ese año aislado
+    cmv_seguro = np.where(cmv == 0, ventas, cmv)
+
+    # 2. Ratios de Rotación (Veces al año)
+    rot_activo_total = ventas / activo.replace(0, pd.NA)
+    rot_activo_corriente = ventas / activo_corriente.replace(0, pd.NA)
+    rot_bienes_uso = ventas / bienes_uso.replace(0, pd.NA) if 'bienes_uso' in locals() else (ventas / bienes_de_uso.replace(0, pd.NA))
+    rot_inventarios = cmv_seguro / bienes_de_cambio.replace(0, pd.NA)
+
+    # 3. Plazos Medios (Expresados en Días de calendario)
+    dias_cobro = (creditos_comerciales_puros / ventas.replace(0, pd.NA)) * 365
+    dias_inventario = (bienes_de_cambio / cmv_seguro.replace(0, pd.NA)) * 365
+    dias_pago = (deudas_comerciales / cmv_seguro.replace(0, pd.NA)) * 365
 
     # Consolidación en DataFrame (Expresando valores monetarios en Millones)
     df_kpis = pd.DataFrame({
@@ -107,7 +130,14 @@ if archivo_subido is not None:
         'Margen Neto (%)': margen_neto, 
         'Margen EBITDA (%)': margen_ebitda,
         'ROE (%)': roe, 
-        'Rotacion Activos': rotacion_activos, 
+        'Rotacion Activos': rotacion_activos,
+        'Rotacion Activo Total': rot_activo_total,
+        'Rotacion Activo Corriente': rot_activo_corriente,
+        'Rotacion Bienes Uso': rot_bienes_uso,
+        'Rotacion Inventarios': rot_inventarios,
+        'Dias Cobro': dias_cobro,
+        'Dias Inventario': dias_inventario,
+        'Dias Pago': dias_pago
         'Multiplicador Capital': multiplicador_capital
     }).dropna(how='all').round(2)
 
@@ -440,7 +470,46 @@ if archivo_subido is not None:
         - **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
         - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
+       
+    # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
+    with tab_rotaciones:
+        st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
+        
+        # Fila de KPIs de Plazos Medios
+        col_r1, col_r2, col_r3 = st.columns(3)
+        col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días", 
+                      help="Promedio de días que transcurren desde que se factura un servicio o venta hasta que se cobra efectivamente.")
+        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} días", 
+                      help="Días promedio que la mercadería/materiales permanecen en el activo antes de ser vendidos. Calculado sobre CMV.")
+        col_r3.metric("Plazo Medio de Pago a Proveedores", f"{datos_año['Dias Pago']:.0f} días", 
+                      help="Plazo promedio de financiación comercial obtenido de los proveedores de bienes y servicios.")
+        
+        st.write("")
+        col_tr1, col_tr2 = st.columns(2)
+        
+        with col_tr1:
+            st.markdown("##### ⏱️ Evolución Temporal del Ciclo Operativo (Días)")
+            fig_ciclos = go.Figure()
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3)))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3)))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash')))
+            fig_ciclos.update_layout(yaxis_title="Días Corridos", hovermode="x unified", height=450, legend=config_leyenda_abajo)
+            st.plotly_chart(fig_ciclos, use_container_width=True)
+            
+        with col_tr2:
+            st.markdown("##### 🔄 Intensidad de Rotación de Activos (Veces al Año)")
+            fig_rot_act = go.Figure()
+            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], name='Rot. Activo Total', marker_color='#2ca02c'))
+            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], name='Rot. Activo Corriente', marker_color='#9467bd'))
+            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], name='Rot. Bienes de Uso', marker_color='#bcbd22'))
+            fig_rot_act.update_layout(yaxis_title="Veces de Rotación", barmode='group', hovermode="x unified", height=450, legend=config_leyenda_abajo)
+            st.plotly_chart(fig_rot_act, use_container_width=True)
 
+        st.info("""
+        **💡 Lectura Gerencial del Ciclo Operativo:**
+        * **El Descalce Financiero:** Si la suma de *Plazo de Cobro + Plazo de Stock* es mayor al *Plazo de Pago*, la empresa tiene un déficit estructural de capital de trabajo que debe financiar con caja propia o bancaria.
+        * **Rotación de Estructura (Bienes de Uso):** Mide cuántos pesos de ventas genera la empresa por cada peso invertido en maquinarias, instalaciones o vehículos. Un ratio decreciente alerta subutilización de la estructura.
+        """)
   
 
 else:
