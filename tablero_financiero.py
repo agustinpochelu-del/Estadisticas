@@ -500,14 +500,14 @@ if archivo_subido is not None:
             st.plotly_chart(fig_ciclos, use_container_width=True)
             
         with col_tr2:
-            st.markdown("##### 🔄 Intensidad de Rotación de Activos (Veces al Año)")
+            st.markdown("##### 🔄 Intensidad de Rotación de Activos (Tendencia en Veces)")
             fig_rot_act = go.Figure()
-            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], name='Rot. Activo Total', marker_color='#2ca02c'))
-            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], name='Rot. Activo Corriente', marker_color='#9467bd'))
-            fig_rot_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], name='Rot. Bienes de Uso', marker_color='#bcbd22'))
-            fig_rot_act.update_layout(yaxis_title="Veces de Rotación", barmode='group', hovermode="x unified", height=450, legend=config_leyenda_abajo)
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color='#2ca02c', width=3)))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color='#9467bd', width=2, dash='dash')))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], mode='lines+markers', name='Rot. Bienes de Uso', line=dict(color='#bcbd22', width=2, dash='dot')))
+            fig_rot_act.update_layout(yaxis_title="Veces de Rotación al Año", hovermode="x unified", height=450, legend=config_leyenda_abajo)
             st.plotly_chart(fig_rot_act, use_container_width=True)
-
+            
         st.info("""
         **💡 Lectura Gerencial del Ciclo Operativo:**
         * **El Descalce Financiero:** Si la suma de *Plazo de Cobro + Plazo de Stock* es mayor al *Plazo de Pago*, la empresa tiene un déficit estructural de capital de trabajo que debe financiar con caja propia o bancaria.
