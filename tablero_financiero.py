@@ -18,11 +18,27 @@ config_leyenda_abajo = dict(
     orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5
 )
 
+# --- INYECCIÓN DE CSS PARA CABECERA FLOTANTE FIJA (STICKY HEADER) ---
+st.markdown(
+    """
+    <style>
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-header) {
+        position: sticky;
+        top: 2.875rem;
+        background-color: white;
+        z-index: 999;
+        border-bottom: 1px solid #f0f2f6;
+        padding-bottom: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # --- BARRA LATERAL (SIDEBAR): CONTROL TOTAL DE LA APLICACIÓN ---
 with st.sidebar:
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     
-    # Inicialización genérica (Sustituye cualquier dato fijo de empresa)
     nombre_empresa = "Empresa no identificada"
     cuit_empresa = ""
     domicilio_empresa = ""
@@ -39,13 +55,11 @@ with st.sidebar:
             cuit_empresa = dict_empresa.get("CUIT", "")
             domicilio_empresa = dict_empresa.get("Domicilio", "")
             
-            # Formateo estricto de la fecha de cierre (Elimina la hora si viene como Timestamp)
             raw_cierre = dict_empresa.get("Cierre Ejercicio", "")
             if pd.api.types.is_datetime64_any_dtype(pd.Series([raw_cierre])) or isinstance(raw_cierre, (pd.Timestamp, np.datetime64)):
                 cierre_empresa = pd.to_datetime(raw_cierre).strftime('%Y-%m-%d')
             else:
                 cierre_empresa = str(raw_cierre).split(" ")[0] if " " in str(raw_cierre) else str(raw_cierre)
-                
         except Exception:
             pass
 
@@ -64,7 +78,7 @@ with st.sidebar:
                 año_ipc = ultima_fecha_ipc.year
                 leyenda_ipc = f"Los datos monetarios están actualizados al {mes_palabra} de {año_ipc}"
         except Exception:
-            leyenda_ipc = ""
+            pass
 
         # --- PROCESAMIENTO BASE PARA SELECTORES ---
         df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
@@ -187,9 +201,16 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Título Institucional unificado y dinámico
-    st.title(f"🏢 {nombre_empresa} | Tablero de Control Financiero")
-    st.markdown(f"#### {solapa_seleccionada} | Ejercicio Económico Seleccionado: {año_seleccionado}")
+    # --- CONTENEDOR DE TÍTULO FIJO / STICKY HEADER ---
+    st.markdown(
+        f"""
+        <div class="sticky-header">
+            <h2 style='margin: 0; font-size: 24px;'>🏢 {nombre_empresa} | Tablero de Control Financiero</h2>
+            <p style='margin: 0; color: #666; font-size: 14px;'>{solapa_seleccionada} | Ejercicio Seleccionado: {año_seleccionado}</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
     st.write("")
 
     # --- ENRUTADOR DE CONTENIDO ---
@@ -208,6 +229,7 @@ if archivo_subido is not None:
         st.write("")
         fig_eq = go.Figure()
         
+        # Gráfico corregido sin leyendas extensas en el eje X
         fig_eq.add_trace(go.Bar(
             x=['Activo'], y=[datos_año['Activo No Corriente']], 
             name='Activo No Corriente', marker_color='#a1d99b', 
@@ -270,7 +292,7 @@ if archivo_subido is not None:
 
         st.info("""
         **💡 Guía de Interpretación Patrimonial:**
-        - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
+        - **Estructura de Bloques:** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
         - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
         """)
 
