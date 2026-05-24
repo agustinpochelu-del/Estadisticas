@@ -103,6 +103,7 @@ with st.sidebar:
         solapa_seleccionada = st.radio(
             "Seleccioná la sección:",
             options=[
+                "🏠 Visión General", # <--- Nueva portada incorporada al inicio
                 "🏛️ Estructura Patrimonial", 
                 "💧 Liquidez y Corto Plazo", 
                 "🔄 Rotaciones y Ciclos",
@@ -214,7 +215,73 @@ if archivo_subido is not None:
     st.write("")
 
     # --- ENRUTADOR DE CONTENIDO ---
-    if solapa_seleccionada == "🏛️ Estructura Patrimonial":
+    if solapa_seleccionada == "🏠 Visión General":
+        st.subheader(f"📊 Resumen Ejecutivo de Gestión - Ejercicio {año_seleccionado}")
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        col_p1.metric("Volumen de Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", help="Facturación neta total del ejercicio expresada en Millones.")
+        col_p2.metric("Resultado Neto del Ejercicio", f"$ {datos_año['Resultado Neto']:,.2f} M", help="Ganancia final limpia del ejercicio después de impuestos y amortizaciones.")
+        col_p3.metric("Caja Operativa (EBITDA Proxy)", f"$ {datos_año['EBITDA Proxy']:,.2f} M", help="Capacidad pura del negocio core para generar fondos líquidos aislando amortizaciones e intereses.")
+        
+        st.write("")
+        # Fila 2: KPIs Relativos de Eficiencia y Cobertura
+        col_p4, col_p5, col_p6 = st.columns(3)
+        col_p4.metric("Rentabilidad s/ Capital (ROE)", f"{datos_año['ROE (%)']:.2f}%", help="Métrica reina del accionista: rendimiento obtenido por cada peso invertido en el PN.")
+        col_p5.metric("Margen de Eficiencia Neto", f"{datos_año['Margen Neto (%)']:.2f}%", help="Porcentaje de cada peso facturado que se convierte en utilidad neta final.")
+        col_p6.metric("Índice de Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", help="Relación de cobertura de corto plazo. Valores > 1.0 indican colchón monetario positivo.")
+        
+        st.write("")
+        st.markdown("---")
+        
+        # Bloque Inferior: Gráfico de Radar Financiero de Diagnóstico Integral
+        col_rad1, col_rad2, col_rad3 = st.columns([1, 2, 1])
+        with col_rad2:
+            st.markdown("<p style='text-align: center; font-weight: bold;'>🎯 Radar de Desempeño Financiero (Dimensiones Normalizadas)</p>", unsafe_allow_html=True)
+            
+            # Normalizamos los drivers para que entren limpios en una escala de radar común (0 a 100 o ratios lógicos)
+            # Para evitar que variables muy grandes aplasten el radar, mapeamos niveles lógicos de cumplimiento:
+            categorias = ['Liquidez', 'Solvencia', 'Rentabilidad (Margen)', 'Retorno Accionista (ROE)', 'Endeudamiento (Inverso)']
+            
+            # Armamos los valores del año seleccionados acotados para visualización harmónica en Radar
+            val_liq = min(datos_año['Liquidez Corriente'] * 20, 100) # Un ratio de 2.0 o más es 100% óptimo
+            val_solv = min(datos_año['Solvencia'] * 20, 100)
+            val_marg = max(min(datos_año['Margen Neto (%)'] * 3, 100), 0) # Margen de 33% o más es 100%
+            val_roe = max(min(datos_año['ROE (%)'] * 2, 100), 0)       # ROE de 50% o más es 100%
+            val_end = max(min((2 / (datos_año['Endeudamiento'] + 0.1)) * 50, 100), 0) # A menor endeudamiento, mayor puntuación de estabilidad
+            
+            valores_radar = [val_liq, val_solv, val_marg, val_roe, val_end]
+            valores_radar.append(valores_radar[0]) # Cerramos el polígono del radar
+            categorias.append(categorias[0])
+            
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(
+                r=valores_radar,
+                theta=categorias,
+                fill='toself',
+                fillcolor='rgba(31, 119, 180, 0.25)',
+                line=dict(color='#1f77b4', width=3),
+                name=f'Ejercicio {año_seleccionado}',
+                hovertemplate="Nivel de Salud: %{r:.1f}/100<extra></extra>"
+            ))
+            
+            fig_radar.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
+                    angularaxis=dict(tickfont=dict(size=12, bold=True))
+                ),
+                showlegend=False, height=450, margin=dict(t=30, b=20, l=40, r=40)
+            )
+            st.plotly_chart(fig_radar, use_container_width=True)
+            if st.button("🔍 Ampliar Radar de Diagnóstico", key="btn_radar_ampliar", use_container_width=True):
+                mostrar_grafico_ampliado(fig_radar)
+                
+        st.info("""
+        **💡 Interpretación Ejecutiva de la Portada:**
+        * **El Radar de Salud:** Este polígono integra las 5 fuerzas vitales de la firma. Cuanto más extendida y simétrica sea la superficie azul hacia los extremos, más sólida y equilibrada es la gestión global. Muescas pronunciadas hacia el centro alertan desvíos específicos en esa área que requieren intervención inmediata.
+        """)
+
+    elif solapa_seleccionada == "🏛️ Estructura Patrimonial":
         col_a1, col_a2, col_a3 = st.columns(3)
         col_a1.metric("Activo Total", f"$ {datos_año['Activo Total']:,.2f} M")
         col_a2.metric("Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M")
@@ -229,7 +296,6 @@ if archivo_subido is not None:
         st.write("")
         fig_eq = go.Figure()
         
-        # Gráfico corregido sin leyendas extensas en el eje X
         fig_eq.add_trace(go.Bar(
             x=['Activo'], y=[datos_año['Activo No Corriente']], 
             name='Activo No Corriente', marker_color='#a1d99b', 
