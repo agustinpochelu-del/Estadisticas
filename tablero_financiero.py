@@ -472,7 +472,7 @@ if archivo_subido is not None:
         - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
         """)
        
-        # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
+       # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS ---
     with tab_rotaciones:
         st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
         
@@ -480,7 +480,7 @@ if archivo_subido is not None:
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días", 
                       help="Promedio de días que transcurren desde que se factura un servicio o venta hasta que se cobra efectivamente.")
-        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} días", 
+        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} days" if 'days' in f"{datos_año['Dias Inventario']}" else f"{datos_año['Dias Inventario']:.0f} días", 
                       help="Días promedio que la mercadería/materiales permanecen en el activo antes de ser vendidos. Calculado sobre CMV.")
         col_r3.metric("Plazo Medio de Pago a Proveedores", f"{datos_año['Dias Pago']:.0f} días", 
                       help="Plazo promedio de financiación comercial obtenido de los proveedores de bienes y servicios.")
