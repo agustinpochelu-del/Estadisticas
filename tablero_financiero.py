@@ -490,13 +490,22 @@ if archivo_subido is not None:
         st.write("")
         col_tr1, col_tr2 = st.columns(2)
         
+       # --- REEMPLAZO: CONTROL DE OUTLIERS EN EL EJE Y ---
         with col_tr1:
             st.markdown("##### ⏱️ Evolución Temporal del Ciclo Operativo (Días)")
             fig_ciclos = go.Figure()
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3)))
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3)))
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash')))
-            fig_ciclos.update_layout(yaxis_title="Días Corridos", hovermode="x unified", height=450, legend=config_leyenda_abajo)
+            
+            # CORRECCIÓN ACÁ: Forzamos al eje Y a no estirarse por culpa del año 2018
+            fig_ciclos.update_layout(
+                yaxis_title="Días Corridos", 
+                yaxis=dict(range=[0, 365], showgrid=True), # <--- Ajustá a 500 si querés más margen
+                hovermode="x unified", 
+                height=450, 
+                legend=config_leyenda_abajo
+            )
             st.plotly_chart(fig_ciclos, use_container_width=True)
             
         with col_tr2:
