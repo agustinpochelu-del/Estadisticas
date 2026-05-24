@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 
@@ -14,9 +13,10 @@ def mostrar_grafico_ampliado(figura):
     fig_xl.update_layout(height=650)
     st.plotly_chart(fig_xl, use_container_width=True)
 
-# Encabezado
-st.title("📊 Análisis Integral de Situación Patrimonial y Resultados")
-st.markdown("Esquema de Análisis Completo y Automatizado para la Toma de Decisiones.")
+# ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS
+config_leyenda_abajo = dict(
+    orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5
+)
 
 # Widget para subir el archivo
 archivo_subido = st.file_uploader("Subí el archivo Excel de Balances (.xlsx)", type=["xlsx"])
@@ -39,21 +39,20 @@ if archivo_subido is not None:
         st.error("⚠️ No se encontró la tabla de mapeo ('Sub Rubro' y 'Cuenta') en la hoja 'Rubros Grales'.")
         st.stop()
 
-    # --- CARGA DE DATOS DE LA EMPRESA ---
+    # --- LECTURA AUTOMÁTICA DE DATOS DE LA EMPRESA ---
     try:
-        df_empresa = pd.read_csv("Base Informe.xlsx - Datos Empresa.csv", header=None)
-        # Convertimos a diccionario para buscar directo por clave
-        dict_empresa = dict(zip(df_empresa[0], df_empresa[1]))
+        df_empresa_raw = pd.read_excel(archivo_subido, sheet_name="Datos Empresa", header=None)
+        dict_empresa = dict(zip(df_empresa_raw[0].astype(str).str.strip(), df_empresa_raw[1]))
         
-        nombre_empresa = dict_empresa.get("Empresa", "Empresa Registrada")
-        cuit_empresa = dict_empresa.get("CUIT", "Sin CUIT")
-        domicilio_empresa = dict_empresa.get("Domicilio", "Sin Domicilio")
-        cierre_empresa = dict_empresa.get("Cierre Ejercicio", "")
+        nombre_empresa = dict_empresa.get("Empresa", "Moreni Hnos SRL")
+        cuit_empresa = dict_empresa.get("CUIT", "30-71153548-5")
+        domicilio_empresa = dict_empresa.get("Domicilio", "Puerto Madryn")
+        cierre_empresa = dict_empresa.get("Cierre Ejercicio", "31/10")
     except Exception:
         nombre_empresa = "Moreni Hnos SRL"
         cuit_empresa = "30-71153548-5"
         domicilio_empresa = "Parque Pesquero Municipal N.º 357 mza. 14 parcela 5 – Puerto Madryn"
-        cierre_empresa = "2026-10-31"
+        cierre_empresa = "31/10"
 
     # Función motor para sumar dinámicamente las cuentas basándose en el mapeo de Excel
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
@@ -75,7 +74,6 @@ if archivo_subido is not None:
     patrimonio_neto = sumar_sub_rubro(df_pivot, df_mapeo, 'Patrimonio Neto')
     endeudamiento = pasivo_total / patrimonio_neto.replace(0, pd.NA)
     
-    # Prueba Ácida Estricta Acordada (Caja/Bancos + Clientes netos, sin créditos fiscales ni otros créditos)
     activo_liquido_puro = df_pivot.get('activo liquido', pd.Series(0, index=df_pivot.index))
     creditos_comerciales_puros = df_pivot.get('creditos comerciales', pd.Series(0, index=df_pivot.index))
     prueba_acida = (activo_liquido_puro + creditos_comerciales_puros) / pasivo_corriente.replace(0, pd.NA)
@@ -92,41 +90,32 @@ if archivo_subido is not None:
     margen_ebitda = (ebitda_proxy / ventas.replace(0, pd.NA)) * 100
     margen_neto = (resultado_neto / ventas.replace(0, pd.NA)) * 100
     
-    # Efecto Palanca Avanzado Acordada (GAF - Grado de Apalancamiento Financiero)
     num_palanca = resultado_neto / patrimonio_neto.replace(0, pd.NA)
     den_palanca = (resultado_neto + df_pivot.get('Intereses Financieros', 0)) / (patrimonio_neto + pasivo_no_corriente).replace(0, pd.NA)
     efecto_palanca = num_palanca / den_palanca.replace(0, pd.NA)
-        
+    
     roe = (resultado_neto / patrimonio_neto.replace(0, pd.NA)) * 100
     rotacion_activos = ventas / activo_total.replace(0, pd.NA)
     multiplicador_capital = activo_total / patrimonio_neto.replace(0, pd.NA)
 
-# --- MOTOR DE CÁLCULOS: CORRECCIÓN DE VARIABLES DE ROTACIÓN ---
-    # 1. Extracción de Rubros del df_pivot (con salvavidas de ceros)
-    activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
-    activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
-    activo_total = activo_corriente + activo_no_corriente
-    
+    # --- ESPECÍFICO DE ROTACIONES Y PLAZOS MEDIOS ---
     bienes_de_uso = df_pivot.get('Bienes de Uso', pd.Series(0, index=df_pivot.index))
     bienes_de_cambio = df_pivot.get('Bienes de cambio', pd.Series(0, index=df_pivot.index))
     deudas_comerciales = df_pivot.get('Deudas comerciales', pd.Series(0, index=df_pivot.index))
     
-    # Cuenta de Resultados de tu Excel
     cmv = df_pivot.get('Costo Mercaderia Vendida', pd.Series(0, index=df_pivot.index))
     cmv_seguro = np.where(cmv == 0, ventas, cmv)
 
-    # 2. Ratios de Rotación Corregidos (Veces al año)
     rot_activo_total = ventas / activo_total.replace(0, pd.NA)
     rot_activo_corriente = ventas / activo_corriente.replace(0, pd.NA)
     rot_bienes_uso = ventas / bienes_de_uso.replace(0, pd.NA)
     rot_inventarios = cmv_seguro / bienes_de_cambio.replace(0, pd.NA)
 
-   # 3. Plazos Medios Corregidos (Días)
     dias_cobro = (creditos_comerciales_puros / ventas.replace(0, pd.NA)) * 365
     dias_inventario = (bienes_de_cambio / pd.Series(cmv_seguro, index=df_pivot.index).replace(0, pd.NA)) * 365
     dias_pago = (deudas_comerciales / pd.Series(cmv_seguro, index=df_pivot.index).replace(0, pd.NA)) * 365
-    
-    # Consolidación en DataFrame (Expresando valores monetarios en Millones)
+
+    # Consolidación en DataFrame (Valores monetarios en Millones)
     df_kpis = pd.DataFrame({
         'Activo Corriente': activo_corriente / 1e6, 
         'Activo No Corriente': activo_no_corriente / 1e6, 
@@ -147,10 +136,9 @@ if archivo_subido is not None:
         'EBITDA Proxy': ebitda_proxy / 1e6,
         'Margen Neto (%)': margen_neto, 
         'Margen EBITDA (%)': margen_ebitda,
-       # ... (líneas anteriores del diccionario)
         'ROE (%)': roe, 
         'Rotacion Activos': rotacion_activos, 
-        'Multiplicador Capital': multiplicador_capital, # <--- AGREGAR ESTA COMA ACÁ
+        'Multiplicador Capital': multiplicador_capital,
         'Rotacion Activo Total': rot_activo_total,
         'Rotacion Activo Corriente': rot_activo_corriente,
         'Rotacion Bienes Uso': rot_bienes_uso,
@@ -160,65 +148,41 @@ if archivo_subido is not None:
         'Dias Pago': dias_pago
     }).dropna(how='all').round(2)
 
-   # --- BARRA LATERAL: CONTROL DE TIEMPO E IDENTIFICACIÓN CORPORATIVA ---
+    # --- BARRA LATERAL (SIDEBAR): FILTROS E IDENTIFICACIÓN CORPORATIVA ---
     with st.sidebar:
-        # Cabecera de la Barra Lateral con la Identificación de la Empresa
         st.markdown(f"### 🏢 {nombre_empresa}")
         st.markdown(f"**CUIT:** {cuit_empresa}")
         st.markdown(f"📍 *{domicilio_empresa}*")
-        
-        # Si a futuro tenés el archivo del logo (ej: logo.png) en la carpeta, 
-        # podés descomentar la línea de abajo:
-        # st.image("logo.png", use_container_width=True)
-        
         st.markdown("---")
-        st.subheader("⏱️ Control de Períodos")
         
-        # Selector de Año Fiscal (asumiendo que df_filtrado u otra estructura tiene los años disponibles)
-        años_disponibles = sorted(list(df_pivot.index), reverse=True)
+        st.subheader("⏱️ Control de Períodos")
+        lista_años = sorted(df_kpis.index.tolist())
         año_seleccionado = st.selectbox(
             "Seleccionar Ejercicio Económico:",
-            options=años_disponibles,
+            options=sorted(lista_años, reverse=True),
             index=0
         )
+        datos_año = df_kpis.loc[año_seleccionado]
         
         st.markdown("---")
-        # Filtro de Lapso Temporal para Gráficos Históricos
         st.subheader("📅 Rango de Análisis Histórico")
-        año_min, año_max = int(min(años_disponibles)), int(max(años_disponibles))
-        
-        lapso_temporal = st.slider(
+        rango_años = st.slider(
             "Años a incluir en las tendencias:",
-            min_value=año_min,
-            max_value=año_max,
-            value=(año_min, año_max)
+            min_value=int(min(lista_años)),
+            max_value=int(max(lista_años)),
+            value=(int(min(lista_años)), int(max(lista_años)))
         )
+        df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
         
         st.markdown("---")
         st.caption(f"📅 Cierre de Ejercicio: {cierre_empresa}")
         st.caption("Filtros globales aplicados en tiempo real.")
-    
-    # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS (DA MÁS ESPACIO LATERAL)
-    config_leyenda_abajo = dict(
-        orientation="h",
-        yanchor="top",
-        y=-0.22,
-        xanchor="center",
-        x=0.5
-    )
-    
-  # ... (Aquí arriba viene todo el bloque que pegamos recién de "with st.sidebar:")
-    # ... que contiene los datos de la empresa y los selectores.
 
-
-    # =========================================================================
-    # --- CUERPO PRINCIPAL DEL INFORME (PEGAR ACÁ) ---
-    # =========================================================================
+    # --- CUERPO PRINCIPAL DEL INFORME ---
     st.title("📈 Tablero de Control Financiero y Gestión")
     st.markdown(f"### Reporte Analítico de Gestión | Período Seleccionado: {año_seleccionado}")
 
-
-    # --- 3. ESTRUCTURA DE SOLAPAS (ESTO YA LO TENÉS) ---
+    # --- ESTRUCTURA DE SOLAPAS ---
     tab1, tab2, tab_rotaciones, tab3 = st.tabs([
         "🏛️ Estructura Patrimonial", 
         "💧 Liquidez y Corto Plazo", 
@@ -226,14 +190,10 @@ if archivo_subido is not None:
         "📈 Rentabilidad Económica"
     ])
     
-    with tab1:
-        # ... contenido de estructura patrimonial
-    
-    # --- SOLAPA 1: PATRIMONIO (FOTO DEL BALANCE) ---
+    # --- SOLAPA 1: PATRIMONIO ---
     with tab1:
         st.subheader(f"Análisis Patrimonial - Ejercicio {año_seleccionado}")
         
-        # Auxiliar de herramientas dinámicas para los bloques del gráfico (HTML)
         def armar_texto_hover(sub_rubro_nombre):
             cuentas = df_mapeo[df_mapeo['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
             lineas = f"<b>{sub_rubro_nombre.upper()}</b><br>"
@@ -272,8 +232,6 @@ if archivo_subido is not None:
         st.markdown(f"<h5 style='text-align: center;'>📋 Esquema Estructural del Balance (Ecuación Patrimonial)</h5>", unsafe_allow_html=True)
         
         fig_eq = go.Figure()
-        
-        # LADO IZQUIERDO: Inversión (Corriente ARRIBA, No Corriente ABAJO)
         fig_eq.add_trace(go.Bar(
             x=['INVERSIÓN (ACTIVO)'], y=[datos_año['Activo No Corriente']],
             name='Activo No Corriente', marker_color='#a1d99b',
@@ -291,7 +249,6 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Activo Corriente')
         ))
         
-        # LADO DERECHO: Financiamiento (Pasivo Corriente ARRIBA, Pasivo No Corriente MEDIO, PN ABAJO)
         fig_eq.add_trace(go.Bar(
             x=['FINANCIAMIENTO (PASIVO + PN)'], y=[datos_año['Patrimonio Neto']],
             name='Patrimonio Neto', marker_color='#1f77b4',
@@ -317,7 +274,6 @@ if archivo_subido is not None:
             hovertemplate=armar_texto_hover('Pasivo Corriente')
         ))
         
-        # Modificación Acordada: bargap=0 y tickvals=[] para remover textos del eje X redundantes
         fig_eq.update_layout(
             barmode='stack', bargap=0, showlegend=False, height=450, 
             margin=dict(t=30, b=20, l=20, r=20),
@@ -353,14 +309,8 @@ if archivo_subido is not None:
             st.plotly_chart(fig_act, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Inversión", key="btn_act", use_container_width=True):
                 mostrar_grafico_ampliado(fig_act)
-            
-        st.info("""
-        **💡 Guía de interpretación:**
-        - **Estructura del Balance:** Esta gráfica muestra el balance general como un bloque unificado, respetando el principio de partida doble ($A = P + PN$). Permite evaluar rápidamente si los activos a largo plazo (Bienes de Uso) están siendo financiados correctamente con deudas a largo plazo o capital propio, para no ahogar la liquidez del negocio.
-        - **Índice de Endeudamiento (Pasivo / PN):** Mide cuántos pesos de deuda tiene la empresa por cada peso de capital propio aportado por los socios.
-        """)
 
-    # --- SOLAPA 2: LIQUIDEZ Y RESPALDO (SOLVENCIA, GARANTÍA Y PALANCA) ---
+    # --- SOLAPA 2: LIQUIDEZ ---
     with tab2:
         st.subheader(f"Situación de Corto y Largo Plazo - Ejercicio {año_seleccionado}")
         
@@ -399,17 +349,53 @@ if archivo_subido is not None:
             st.plotly_chart(fig_solv, use_container_width=True)
             if st.button("🔍 Ampliar Gráfico de Solvencia y Palanca", key="btn_solv", use_container_width=True):
                 mostrar_grafico_ampliado(fig_solv)
-        
-        st.info("""
-        **💡 Guía de interpretación:**
-        - **Liquidez Corriente (Activo Corriente / Pasivo Corriente):** Indica cuántos pesos en bienes líquidos o realizables de corto plazo se tienen para cubrir cada peso de deuda que vence dentro del año.
-        - **Prueba Ácida Filtrada:** Mide la capacidad de pago inmediata más estricta. Excluye totalmente los inventarios (Bienes de cambio), los créditos fiscales y otros créditos no comerciales, computando únicamente la disponibilidad líquida real y las cuentas a cobrar de clientes de forma prolija.
-        - **Índice de Solvencia (Activo Total / Pasivo Total):** Mide la garantía a largo plazo de la empresa. Evalúa si el total de activos es suficiente para respaldar el total de las obligaciones contraídas con terceros.
-        - **Índice de Garantía (PN / Pasivo Total):** Es la contrapartida del endeudamiento. Mide el respaldo o "espalda propia" que ofrecen los socios ante las deudas totales. Indica cuántos pesos de capital propio respaldan cada peso de deuda externa.
-        - **Efecto Palanca Financiera (GAF):** Utiliza la fórmula avanzada de rentabilidad. Mide la relación entre el ROE y el rendimiento del capital permanente. Un valor superior a 1.0 demuestra un apalancamiento positivo: la deuda externa se tomó a un costo menor que el rendimiento del negocio, multiplicando la utilidad final para el socio.
-        """)
 
-    # --- SOLAPA 3: RENTABILIDAD ECONÓMICA (LA PELÍCULA DE LOS RESULTADOS) ---
+    # --- SOLAPA 3: ROTACIONES Y CICLOS ---
+    with tab_rotaciones:
+        st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
+        
+        col_r1, col_r2, col_r3 = st.columns(3)
+        col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días", 
+                      help="Promedio de días que transcurren desde que se factura un servicio o venta hasta que se cobra efectivamente.")
+        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} días", 
+                      help="Días promedio que la mercadería/materiales permanecen en el activo antes de ser vendidos. Calculado sobre CMV.")
+        col_r3.metric("Plazo Medio de Pago a Proveedores", f"{datos_año['Dias Pago']:.0f} días", 
+                      help="Plazo promedio de financiación comercial obtenido de los proveedores de bienes y servicios.")
+        
+        st.write("")
+        col_tr1, col_tr2 = st.columns(2)
+        
+        with col_tr1:
+            st.markdown("##### ⏱️ Evolución Temporal del Ciclo Operativo (Días)")
+            fig_ciclos = go.Figure()
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3), hovertemplate="Plazo Cobro: %{y:.2f} días<extra></extra>"))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3), hovertemplate="Plazo Stock: %{y:.2f} días<extra></extra>"))
+            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash'), hovertemplate="Plazo Pago: %{y:.2f} días<extra></extra>"))
+            
+            fig_ciclos.update_layout(
+                yaxis_title="Días Corridos", 
+                yaxis=dict(range=[0, 365], showgrid=True),
+                hovermode="x unified", height=450, legend=config_leyenda_abajo
+            )
+            st.plotly_chart(fig_ciclos, use_container_width=True)
+            
+            if st.button("🔍 Ampliar Gráfico de Ciclos", key="btn_ciclos_ampliar", use_container_width=True):
+                mostrar_grafico_ampliado(fig_ciclos)
+            
+        with col_tr2:
+            st.markdown("##### 🔄 Intensidad de Rotación de Activos (Tendencia en Veces)")
+            fig_rot_act = go.Figure()
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color='#2ca02c', width=3), hovertemplate="Rot. Activo Total: %{y:.2f}x<extra></extra>"))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color='#9467bd', width=2, dash='dash'), hovertemplate="Rot. Activo Corriente: %{y:.2f}x<extra></extra>"))
+            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], mode='lines+markers', name='Rot. Bienes de Uso', line=dict(color='#bcbd22', width=2, dash='dot'), hovertemplate="Rot. Bienes de Uso: %{y:.2f}x<extra></extra>"))
+            
+            fig_rot_act.update_layout(yaxis_title="Veces de Rotación al Año", hovermode="x unified", height=450, legend=config_leyenda_abajo)
+            st.plotly_chart(fig_rot_act, use_container_width=True)
+            
+            if st.button("🔍 Ampliar Gráfico de Rotaciones", key="btn_rot_ampliar", use_container_width=True):
+                mostrar_grafico_ampliado(fig_rot_act)
+
+    # --- SOLAPA 4: RENTABILIDAD Y DUPONT UNIFICADOS ---
     with tab3:
         st.subheader(f"Rendimiento Económico - Ejercicio {año_seleccionado}")
         
@@ -453,7 +439,7 @@ if archivo_subido is not None:
             if st.button("🔍 Ampliar Gráfico de Caja", key="btn_caja", use_container_width=True):
                 mostrar_grafico_ampliado(fig_rent)
 
-        # --- INTEGRACIÓN PUNTO 2: MODELO DUPONT DENTRO DE RENTABILIDAD ---
+        # --- INTEGRACIÓN: MODELO DUPONT AVANZADO CON DOBLE ESCALA ---
         st.write("")
         st.markdown("---")
         st.subheader(f"🎯 Descomposición del ROE (Esquema DuPont) - Ejercicio {año_seleccionado}")
@@ -464,39 +450,17 @@ if archivo_subido is not None:
         col_d3.metric("Multiplicador (Apalancamiento)", f"{datos_año['Multiplicador Capital']:.2f}x")
         col_d4.metric("ROE Final (Rendimiento PN)", f"{datos_año['ROE (%)']:.2f}%")
         
-       # --- REEMPLAZO SEGURO: VARIABLE ÚNICA PARA EVITAR DUPLICADOS ---
         st.write("")
-        fig_dupont_rent = go.Figure() # <--- Cambiamos el nombre de la variable acá
+        fig_dupont_rent = go.Figure()
         
         # Eje Y Principal: Tasas en Porcentaje (%)
-        fig_dupont_rent.add_trace(go.Scatter(
-            x=df_filtrado.index, y=df_filtrado['ROE (%)'], 
-            name='ROE (%) [Eje Izq]', 
-            line=dict(color='#e377c2', width=4), 
-            hovertemplate="ROE: %{y:.2f}%<extra></extra>"
-        ))
-        fig_dupont_rent.add_trace(go.Scatter(
-            x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], 
-            name='Margen Neto (%) [Eje Izq]', 
-            line=dict(color='#ff7f0e', width=2, dash='dash'), 
-            hovertemplate="Margen Neto: %{y:.2f}%<extra></extra>"
-        ))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) [Eje Izq]', line=dict(color='#e377c2', width=4), hovertemplate="ROE: %{y:.2f}%<extra></extra>"))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%) [Eje Izq]', line=dict(color='#ff7f0e', width=2, dash='dash'), hovertemplate="Margen Neto: %{y:.2f}%<extra></extra>"))
         
         # Eje Y Secundario: Ratios en Veces (x)
-        fig_dupont_rent.add_trace(go.Scatter(
-            x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], 
-            name='Rotación Activos (x) [Eje Der]', 
-            yaxis='y2', line=dict(color='#2ca02c', width=2), 
-            hovertemplate="Rotación: %{y:.2f}x<extra></extra>"
-        ))
-        fig_dupont_rent.add_trace(go.Scatter(
-            x=df_filtrado.index, y=df_filtrado['Multiplicador Capital'], 
-            name='Multiplicador Cap. (x) [Eje Der]', 
-            yaxis='y2', line=dict(color='#1f77b4', width=2, dash='dot'), 
-            hovertemplate="Multiplicador: %{y:.2f}x<extra></extra>"
-        ))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], mode='lines+markers', name='Rotación Activos (x) [Eje Der]', yaxis='y2', line=dict(color='#2ca02c', width=2), hovertemplate="Rotación: %{y:.2f}x<extra></extra>"))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Multiplicador Capital'], mode='lines+markers', name='Multiplicador Cap. (x) [Eje Der]', yaxis='y2', line=dict(color='#1f77b4', width=2, dash='dot'), hovertemplate="Multiplicador: %{y:.2f}x<extra></extra>"))
         
-        # Configuración de Layout con Eje Y Doble
         fig_dupont_rent.update_layout(
             title="Análisis de Tendencias DuPont: Drivers del ROE", 
             xaxis=dict(title="Período"),
@@ -504,80 +468,9 @@ if archivo_subido is not None:
             yaxis2=dict(title="Ratio / Veces (x)", overlaying='y', side='right', showgrid=False),
             hovermode="x unified", height=500, legend=config_leyenda_abajo
         )
-        
-        # Renderizado con variables específicas únicas
         st.plotly_chart(fig_dupont_rent, use_container_width=True)
         
         if st.button("🔍 Ampliar Gráfico DuPont", key="btn_dupont_rentabilidad", use_container_width=True):
             mostrar_grafico_ampliado(fig_dupont_rent)
-            
-        st.info("""
-        **💡 Guía de interpretación:**
-        - **Rentabilidad sobre Ventas (ROS / Margen Neto):** Mide la eficiencia comercial. Nos indica qué porcentaje de cada peso facturado por la empresa queda limpio como ganancia neta para los socios después de absorber todos los costos, amortizaciones, gastos financieros e impuestos.
-        - **Rentabilidad sobre el Patrimonio Neto (ROE):** Mide el rendimiento del capital propio. Indica cuánta ganancia genera la empresa por cada peso que los socios dejaron invertido en el negocio. Es la métrica definitiva de éxito financiero para el accionista.
-        - **Caja Operativa (EBITDA Proxy):** Muestra el verdadero potencial del negocio para generar fondos genuinos por su actividad core, aislando amortizaciones, costos financieros e impuestos.
-        
-        **💡 Guía de interpretación del Modelo DuPont:**
-        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
-        - **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
-        - **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
-        - **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de fondos de terceros sobre el capital propio aportado.
-        """)
-       
-     # --- SOLAPA: ROTACIONES Y CICLOS OPERATIVOS (OPTIMIZADA) ---
-    with tab_rotaciones:
-        st.subheader(f"📊 Análisis de Ciclos Operativos y Eficiencia - Ejercicio {año_seleccionado}")
-        
-        # Fila de KPIs de Plazos Medios
-        col_r1, col_r2, col_r3 = st.columns(3)
-        col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días", 
-                      help="Promedio de días que transcurren desde que se factura un servicio o venta hasta que se cobra efectivamente.")
-        col_r2.metric("Días de Stock en Inmovilización", f"{datos_año['Dias Inventario']:.0f} días", 
-                      help="Días promedio que la mercadería/materiales permanecen en el activo antes de ser vendidos. Calculado sobre CMV.")
-        col_r3.metric("Plazo Medio de Pago a Proveedores", f"{datos_año['Dias Pago']:.0f} días", 
-                      help="Plazo promedio de financiación comercial obtenido de los proveedores de bienes y servicios.")
-        
-        st.write("")
-        col_tr1, col_tr2 = st.columns(2)
-        
-        with col_tr1:
-            st.markdown("##### ⏱️ Evolución Temporal del Ciclo Operativo (Días)")
-            fig_ciclos = go.Figure()
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro (Clientes)', line=dict(color='#1f77b4', width=3), hovertemplate="Plazo Cobro: %{y:.2f} días<extra></extra>"))
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock (Inventario)', line=dict(color='#ff7f0e', width=3), hovertemplate="Plazo Stock: %{y:.2f} días<extra></extra>"))
-            fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago (Proveedores)', line=dict(color='#d62728', width=3, dash='dash'), hovertemplate="Plazo Pago: %{y:.2f} días<extra></extra>"))
-            
-            fig_ciclos.update_layout(
-                yaxis_title="Días Corridos", 
-                yaxis=dict(range=[0, 365], showgrid=True),
-                hovermode="x unified", height=450, legend=config_leyenda_abajo
-            )
-            st.plotly_chart(fig_ciclos, use_container_width=True)
-            
-            # Botón Fullscreen para Ciclos
-            if st.button("🔍 Ampliar Gráfico de Ciclos", key="btn_ciclos_ampliar", use_container_width=True):
-                mostrar_grafico_ampliado(fig_ciclos)
-            
-        with col_tr2:
-            st.markdown("##### 🔄 Intensidad de Rotación de Activos (Tendencia en Veces)")
-            fig_rot_act = go.Figure()
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color='#2ca02c', width=3), hovertemplate="Rot. Activo Total: %{y:.2f}x<extra></extra>"))
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color='#9467bd', width=2, dash='dash'), hovertemplate="Rot. Activo Corriente: %{y:.2f}x<extra></extra>"))
-            fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Bienes Uso'], mode='lines+markers', name='Rot. Bienes de Uso', line=dict(color='#bcbd22', width=2, dash='dot'), hovertemplate="Rot. Bienes de Uso: %{y:.2f}x<extra></extra>"))
-            
-            fig_rot_act.update_layout(yaxis_title="Veces de Rotación al Año", hovermode="x unified", height=450, legend=config_leyenda_abajo)
-            st.plotly_chart(fig_rot_act, use_container_width=True)
-            
-            # Botón Fullscreen para Rotaciones
-            if st.button("🔍 Ampliar Gráfico de Rotaciones", key="btn_rot_ampliar", use_container_width=True):
-                mostrar_grafico_ampliado(fig_rot_act)
-
-        st.info("""
-        **💡 Lectura Gerencial del Ciclo Operativo:**
-        * **El Descalce Financiero:** Si la suma de *Plazo de Cobro + Plazo de Stock* es mayor al *Plazo de Pago*, la empresa tiene un déficit estructural de capital de trabajo que debe financiar con caja propia o bancaria.
-        * **Rotación de Estructura (Bienes de Uso):** Mide cuántos pesos de ventas genera la empresa por cada peso invertido en maquinarias, instalaciones o vehículos. Un ratio decreciente alerta subutilización de la estructura.
-        """)
-  
-
 else:
     st.info("👆 Por favor, subí el archivo Excel (.xlsx) para comenzar el análisis.")
