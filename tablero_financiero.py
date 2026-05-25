@@ -60,7 +60,7 @@ def insertar_boton_impresion():
     st.markdown("""
         <style>
         @media print {
-            @page { size: A4 landscape; margin: 15mm 12mm 15mm 12mm; }
+            @page { size: A4 landscape; margin: 15mm 12mm 15mm 12mm }
             [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], footer, button, .stButton { display: none !important; }
             .main, .block-container, div { overflow: visible !important; height: auto !important; width: 100% !important; max-width: 100% !important; padding-top: 0 !important; padding-bottom: 0 !important; }
             .js-plotly-plot, .plotly { width: 100% !important; height: auto !important; page-break-inside: avoid !important; }
