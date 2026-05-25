@@ -57,20 +57,20 @@ def insertar_boton_impresion():
     
     components.html("""
         <button onclick="window.parent.print()" style="
-            background-color: #1E3A8A; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 14px; box-shadow: 0px 2px 4px rgba(0,0,0,0.1); transition: background-color 0.2s;
-        " onmouseover="this.style.backgroundColor='#172554'" onmouseout="this.style.backgroundColor='#1E3A8A'">
+            background-color: #6482A1; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 14px; box-shadow: 0px 2px 4px rgba(0,0,0,0.1); transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#4F6B8A'" onmouseout="this.style.backgroundColor='#6482A1'">
             🖨️ Generar Reporte de Impresión / Guardar PDF Ejecutivo
         </button>
     """, height=45)
 
-# LEYENDAS Y PALETA NORDIC CORPORATE
+# LEYENDAS Y PALETA CORPORATIVA SUAVE (MUTED PASTELS)
 config_leyenda_abajo = dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5)
-COLOR_ACT_CORR = '#10B981'   # Verde esmeralda
-COLOR_ACT_NOCORR = '#047857' # Verde oscuro
-COLOR_PAS_CORR = '#F97316'   # Naranja
-COLOR_PAS_NOCORR = '#C2410C' # Naranja oscuro
-COLOR_PN = '#1E3A8A'         # Azul profundo
-COLOR_VENTAS = '#3B82F6'     # Azul claro
+COLOR_PN = '#6482A1'         # Azul Pizarra Suave (Base 1)
+COLOR_VENTAS = '#7A96B1'     # Azul Pizarra Claro (Base 1 alt)
+COLOR_ACT_CORR = '#7D9B8B'   # Verde Salvia Oscuro (Base 2)
+COLOR_PAS_CORR = '#C4A67A'   # Mostaza Apagado / Arena (Base 3)
+COLOR_PAS_NOCORR = '#B67E79' # Rosa Viejo / Terracota Suave (Secundario 1)
+COLOR_ACT_NOCORR = '#A3A09E' # Gris Cálido (Secundario 2)
 
 # --- INYECCIÓN DE CSS PARA CABECERA FLOTANTE FIJA (STICKY HEADER) ---
 st.markdown(
@@ -96,7 +96,6 @@ with st.sidebar:
             dict_empresa = dict(zip(df_empresa_raw[0].astype(str).str.strip(), df_empresa_raw[1]))
             nombre_empresa = dict_empresa.get("Empresa", "Empresa Registrada")
             
-            # Lógica robusta para extraer solo día y mes del cierre
             raw_cierre = dict_empresa.get("Cierre Ejercicio", "31/12")
             if isinstance(raw_cierre, str) and "/" in raw_cierre:
                 partes = raw_cierre.split("/")
@@ -120,7 +119,6 @@ with st.sidebar:
         df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
         lista_años = sorted(df_pivot.index.tolist())
 
-        # Cálculo dinámico de fechas de balance
         ultimo_año_base = int(max(lista_años))
         fecha_ultimo_balance = f"{dia_cierre:02d}/{mes_cierre:02d}/{ultimo_año_base}"
         fecha_proximo_cierre = f"{dia_cierre:02d}/{mes_cierre:02d}/{ultimo_año_base + 1}"
@@ -218,7 +216,6 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Búsqueda segura del año anterior para los deltas
     año_ant, datos_año_ant = None, None
     lista_desc = sorted(lista_años, reverse=True)
     idx_desc = lista_desc.index(año_seleccionado)
@@ -274,7 +271,7 @@ if archivo_subido is not None:
             categorias.append(categorias[0])
             
             fig_radar = go.Figure(go.Scatterpolar(
-                r=valores_radar, theta=categorias, fill='toself', fillcolor='rgba(30, 58, 138, 0.25)', line=dict(color=COLOR_PN, width=3),
+                r=valores_radar, theta=categorias, fill='toself', fillcolor='rgba(100, 130, 161, 0.25)', line=dict(color=COLOR_PN, width=3),
                 name=f'Ejercicio {año_seleccionado}', hovertemplate="Nivel de Salud: %{r:.1f}/100<extra></extra>"
             ))
             fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], showticklabels=False), angularaxis=dict(tickfont=dict(size=12))), showlegend=False, height=450, margin=dict(t=30, b=20, l=40, r=40))
@@ -293,7 +290,6 @@ if archivo_subido is not None:
         st.write("")
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("🔵 Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", delta=get_delta('Patrimonio Neto', 'M'))
-        # Pasivo y Endeudamiento se invierten los colores (Subir deuda es delta negativo visualmente)
         col_m2.metric("🟠 Pasivo Total", f"$ {datos_año['Pasivo Total']:,.2f} M", delta=get_delta('Pasivo Total', 'M'), delta_color="inverse")
         col_m3.metric(f"{semaforo(datos_año['Endeudamiento'], 'Endeudamiento')} Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}", delta=get_delta('Endeudamiento', 'x'), delta_color="inverse")
         
@@ -349,7 +345,7 @@ if archivo_subido is not None:
             fig_liq = go.Figure()
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color=COLOR_ACT_CORR)))
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color=COLOR_PN, dash='dot')))
-            fig_liq.add_hline(y=1.0, line_dash="dash", line_color=COLOR_PAS_CORR)
+            fig_liq.add_hline(y=1.0, line_dash="dash", line_color=COLOR_PAS_NOCORR)
             fig_liq.update_layout(title="Evolución de Índices de Liquidez", hovermode="x unified", height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_liq, use_container_width=True)
         with col_t2b:
@@ -365,7 +361,6 @@ if archivo_subido is not None:
 
     elif solapa_seleccionada == "🔄 Ciclo Operativo":
         col_r1, col_r2, col_r3 = st.columns(3)
-        # Menos días de cobro y stock es mejor (inverse). Más días de pago suele ser mejor (normal).
         col_r1.metric("📊 Plazo Medio Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'días'), delta_color="inverse")
         col_r2.metric("📊 Días de Stock", f"{datos_año['Dias Inventario']:.0f} días", delta=get_delta('Dias Inventario', 'días'), delta_color="inverse")
         col_r3.metric("📊 Plazo Medio Pago", f"{datos_año['Dias Pago']:.0f} días", delta=get_delta('Dias Pago', 'días'))
@@ -401,14 +396,14 @@ if archivo_subido is not None:
         col_t3a, col_t3b = st.columns(2)
         with col_t3a:
             fig_ventas = go.Figure()
-            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color=COLOR_PN, yaxis='y'))
+            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color=COLOR_VENTAS, yaxis='y'))
             fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color=COLOR_ACT_CORR, width=3)))
             fig_ventas.update_layout(title="Ventas vs Margen Neto Final", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_ventas, use_container_width=True)
         with col_t3b:
             fig_rent = go.Figure()
-            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_VENTAS))
-            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto', marker_color=COLOR_ACT_NOCORR))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_PN))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto', marker_color=COLOR_ACT_CORR))
             fig_rent.update_layout(title="EBITDA vs Resultado Neto Real", barmode='group', height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_rent, use_container_width=True)
 
