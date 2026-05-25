@@ -5,7 +5,7 @@ import numpy as np
 import streamlit.components.v1 as components
 
 # Configuración de la página
-st.set_page_config(page_title="Tablero de Análisis Integral", layout="wide")
+st.set_page_config(page_title="Tablero de Control", layout="wide")
 
 # --- ESTÉTICA GENERAL: FONDO Y CONTENEDORES ---
 st.markdown(
@@ -86,7 +86,7 @@ def insertar_boton_impresion():
         ">🖨️ Generar Reporte de Impresión / Guardar PDF Ejecutivo</button>
     """, height=45)
 
-# PALETA CORPORATIVA SUAVE (MUTED)
+# PALETA CORPORATIVA SUAVE (MUTED PASTELS)
 COLOR_PN = '#6482A1'         # Azul Pizarra
 COLOR_VENTAS = '#7A96B1'     # Azul Claro
 COLOR_ACT_CORR = '#7D9B8B'   # Verde Salvia
@@ -148,6 +148,7 @@ if archivo_subido is not None:
     fila_inicio = df_rubros_raw[df_rubros_raw[0] == 'Sub Rubro'].index[0]
     df_mapeo = df_rubros_raw.iloc[fila_inicio+1:].dropna(subset=[0, 1]).copy()
     df_mapeo.columns = ['Sub Rubro', 'Cuenta']
+    
     def sumar_sub_rubro(df_datos, df_map, sub_rubro_nombre):
         cuentas = df_map[df_map['Sub Rubro'].str.lower() == sub_rubro_nombre.lower()]['Cuenta'].tolist()
         cuentas_existing = [c for c in cuentas if c in df_datos.columns]
@@ -163,7 +164,7 @@ if archivo_subido is not None:
     res_neto = df_pivot.get('Resultado Neto', pd.Series(0, index=df_pivot.index))
     ebitda = res_neto + df_pivot.get('Amortizacion', 0) + df_pivot.get('Intereses Financieros', 0) + df_pivot.get('impuesto a las gs', 0)
     
-    # KPIs dinámicos
+    # Ratios
     df_kpis = pd.DataFrame({
         'Activo Corriente': act_corr / 1e6, 'Activo No Corriente': act_ncorr / 1e6, 'Activo Total': (act_corr + act_ncorr) / 1e6,
         'Pasivo Corriente': pas_corr / 1e6, 'Pasivo No Corriente': pas_ncorr / 1e6, 'Pasivo Total': (pas_corr + pas_ncorr) / 1e6,
@@ -195,7 +196,7 @@ if archivo_subido is not None:
     # --- STICKY HEADER ---
     st.markdown(f'<div class="sticky-header" style="text-align: center;"><h2 style="margin:0; color:{COLOR_PN};">🏢 {nombre_empresa} | Tablero de Control</h2><p style="margin:0; color:#64748B;">{solapa_seleccionada} | Ejercicio: {año_seleccionado}</p></div>', unsafe_allow_html=True)
 
-    # --- REPORTES ---
+    # --- ENRUTADOR DE CONTENIDO ---
     if solapa_seleccionada == "🏠 Resumen Ejecutivo":
         c1, c2, c3 = st.columns(3)
         c1.metric("📊 Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=get_delta('Ventas', 'M'))
@@ -215,27 +216,44 @@ if archivo_subido is not None:
             fig_radar = go.Figure(go.Scatterpolar(r=val_radar + [val_radar[0]], theta=cat + [cat[0]], fill='toself', fillcolor='rgba(100, 130, 161, 0.2)', line=dict(color=COLOR_PN, width=2)))
             fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], showticklabels=False)), showlegend=False, height=400, margin=dict(t=40, b=40), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_radar, use_container_width=True)
-            if st.button("🔍 Ampliar Radar de Diagnóstico", use_container_width=True): mostrar_grafico_ampliado(fig_radar)
+            if st.button("🔍 Ampliar Radar de Diagnóstico", key="btn_radar_exec", use_container_width=True): mostrar_grafico_ampliado(fig_radar)
         
         insertar_boton_impresion()
         st.info("**💡 Interpretación:** El radar muestra el equilibrio de la firma. Un polígono amplio y simétrico indica una gestión saludable en todas las áreas core.")
 
     elif solapa_seleccionada == "🏛️ Estructura Patrimonial":
-        c1, c2, c3 = st.columns(3)
-        c1.metric("📊 Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", delta=get_delta('Activo Total', 'M'))
-        c2.metric("🔵 Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", delta=get_delta('Patrimonio Neto', 'M'))
-        c3.metric(f"{semaforo(datos_año['Endeudamiento'], 'Endeudamiento')} Endeudamiento", f"{datos_año['Endeudamiento']:.2f}", delta=get_delta('Endeudamiento', 'x'), delta_color="inverse")
+        col_a1, col_a2, col_a3 = st.columns(3)
+        col_a1.metric("📊 Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", delta=get_delta('Activo Total', 'M'))
+        col_a2.metric("🟢 Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", delta=get_delta('Activo Corriente', 'M'))
+        col_a3.metric("🟢 Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", delta=get_delta('Activo No Corriente', 'M'))
         
-        st.markdown("<p style='text-align:center; font-weight:bold; margin-top:20px;'>📋 Estructura Patrimonial</p>", unsafe_allow_html=True)
+        st.write("")
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("🔵 Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", delta=get_delta('Patrimonio Neto', 'M'))
+        col_m2.metric("🟠 Pasivo Total", f"$ {datos_año['Pasivo Total']:,.2f} M", delta=get_delta('Pasivo Total', 'M'), delta_color="inverse")
+        col_m3.metric(f"{semaforo(datos_año['Endeudamiento'], 'Endeudamiento')} Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}", delta=get_delta('Endeudamiento', 'x'), delta_color="inverse")
+        
+        st.write("")
         fig_eq = go.Figure()
         fig_eq.add_trace(go.Bar(x=['Inversión'], y=[datos_año['Activo No Corriente']], name='Act. No Corr.', marker_color=COLOR_ACT_NOCORR, texttemplate="$ %{y:.2f}M", textposition='inside'))
         fig_eq.add_trace(go.Bar(x=['Inversión'], y=[datos_año['Activo Corriente']], name='Act. Corr.', marker_color=COLOR_ACT_CORR, texttemplate="$ %{y:.2f}M", textposition='inside'))
         fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Patrimonio Neto']], name='PN', marker_color=COLOR_PN, texttemplate="$ %{y:.2f}M", textposition='inside'))
         fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo No Corriente']], name='Pas. No Corr.', marker_color=COLOR_PAS_NOCORR, texttemplate="$ %{y:.2f}M", textposition='inside'))
         fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo Corriente']], name='Pas. Corr.', marker_color=COLOR_PAS_CORR, texttemplate="$ %{y:.2f}M", textposition='inside'))
-        fig_eq.update_layout(barmode='stack', height=450, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=20, b=20))
-        st.plotly_chart(fig_eq, use_container_width=True)
-        if st.button("🔍 Ampliar Estructura Patrimonial", use_container_width=True): mostrar_grafico_ampliado(fig_eq)
+        
+        # RESTAURADO: Se quitan los ejes y grillas laterales por completo
+        fig_eq.update_layout(
+            barmode='stack', bargap=0.1, showlegend=False, height=450, 
+            margin=dict(t=20, b=20), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False, showline=False),
+            yaxis=dict(showgrid=False, zeroline=False, showline=False, showticklabels=False)
+        )
+        
+        col_eq_izq, col_eq_centro, col_eq_der = st.columns([1, 2, 1])
+        with col_eq_centro:
+            st.markdown("<p style='text-align: center; font-weight: bold;'>📋 Estructura Patrimonial</p>", unsafe_allow_html=True)
+            st.plotly_chart(fig_eq, use_container_width=True)
+            if st.button("🔍 Ampliar Estructura Patrimonial", key="btn_amp_patr", use_container_width=True): mostrar_grafico_ampliado(fig_eq)
 
         st.write("---")
         c1, c2 = st.columns(2)
@@ -243,21 +261,21 @@ if archivo_subido is not None:
             fig1 = go.Figure([go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pas. Corr.', marker_color=COLOR_PAS_CORR), go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pas. No Corr.', marker_color=COLOR_PAS_NOCORR), go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='PN', marker_color=COLOR_PN)])
             fig1.update_layout(title="Evolución Pasivo + PN", barmode='stack', height=350, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
-            if st.button("🔍 Ampliar Evolución Fondeo"): mostrar_grafico_ampliado(fig1)
+            if st.button("🔍 Ampliar Evolución Fondeo", key="btn_amp_fond"): mostrar_grafico_ampliado(fig1)
         with c2:
             fig2 = go.Figure([go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Act. Corr.', marker_color=COLOR_ACT_CORR), go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Act. No Corr.', marker_color=COLOR_ACT_NOCORR)])
             fig2.update_layout(title="Evolución de los Activos", barmode='stack', height=350, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig2, use_container_width=True)
-            if st.button("🔍 Ampliar Evolución Activos"): mostrar_grafico_ampliado(fig2)
+            if st.button("🔍 Ampliar Evolución Activos", key="btn_amp_act"): mostrar_grafico_ampliado(fig2)
         
         insertar_boton_impresion()
         st.info("**💡 Guía:** El bloque de Inversión debe estar calzado por Fondeo genuino. El endeudamiento mide la dependencia de terceros.")
 
     elif solapa_seleccionada == "💧 Liquidez y Solvencia":
-        c1, c2, c3 = st.columns(3)
-        c1.metric("💧 Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=get_delta('Liquidez Corriente', 'x'))
-        c2.metric("💧 Prueba Ácida", f"{datos_año['Prueba Acida']:.2f}", delta=get_delta('Prueba Acida', 'x'))
-        c3.metric("📊 Cap. de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M", delta=get_delta('Capital de Trabajo', 'M'))
+        col_m4, col_m5, col_m6 = st.columns(3)
+        col_m4.metric("💧 Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=get_delta('Liquidez Corriente', 'x'))
+        col_m5.metric("💧 Prueba Ácida", f"{datos_año['Prueba Acida']:.2f}", delta=get_delta('Prueba Acida', 'x'))
+        col_m6.metric("📊 Cap. de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M", delta=get_delta('Capital de Trabajo', 'M'))
 
         c1, c2 = st.columns(2)
         with c1:
@@ -265,32 +283,32 @@ if archivo_subido is not None:
             fig_l.add_hline(y=1.0, line_dash="dash", line_color=COLOR_PAS_NOCORR)
             fig_l.update_layout(title="Tendencia de Liquidez", height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_l, use_container_width=True)
-            if st.button("🔍 Ampliar Gráfico Liquidez"): mostrar_grafico_ampliado(fig_l)
+            if st.button("🔍 Ampliar Gráfico Liquidez", key="btn_amp_liq"): mostrar_grafico_ampliado(fig_l)
         with c2:
             fig_s = go.Figure([go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], name='Solvencia', line=dict(color=COLOR_PN, width=3)), go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], name='Garantía', line=dict(color=COLOR_ACT_NOCORR, dash='dash'))])
             fig_s.update_layout(title="Respaldo y Solvencia", height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_s, use_container_width=True)
-            if st.button("🔍 Ampliar Gráfico Solvencia"): mostrar_grafico_ampliado(fig_s)
+            if st.button("🔍 Ampliar Gráfico Solvencia", key="btn_amp_solv"): mostrar_grafico_ampliado(fig_s)
         
         insertar_boton_impresion()
 
     elif solapa_seleccionada == "🔄 Ciclo Operativo":
-        c1, c2, c3 = st.columns(3)
-        c1.metric("⏱️ Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'd'), delta_color="inverse")
-        c2.metric("⏱️ Stock", f"{datos_año['Dias Inventario']:.0f} días", delta=get_delta('Dias Inventario', 'd'), delta_color="inverse")
-        c3.metric("⏱️ Pago", f"{datos_año['Dias Pago']:.0f} días", delta=get_delta('Dias Pago', 'd'))
+        col_r1, col_r2, col_r3 = st.columns(3)
+        col_r1.metric("⏱️ Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'días'), delta_color="inverse")
+        col_r2.metric("⏱️ Stock", f"{datos_año['Dias Inventario']:.0f} días", delta=get_delta('Dias Inventario', 'días'), delta_color="inverse")
+        col_r3.metric("⏱️ Pago", f"{datos_año['Dias Pago']:.0f} días", delta=get_delta('Dias Pago', 'días'))
 
         c1, c2 = st.columns(2)
         with c1:
             fig_c = go.Figure([go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], name='Cobro', line=dict(color=COLOR_PN)), go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], name='Stock', line=dict(color=COLOR_ACT_CORR)), go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], name='Pago', line=dict(color=COLOR_PAS_CORR, dash='dash'))])
             fig_c.update_layout(title="Ciclo Operativo (Días)", yaxis=dict(range=[0, 365]), height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_c, use_container_width=True)
-            if st.button("🔍 Ampliar Ciclos"): mostrar_grafico_ampliado(fig_c)
+            if st.button("🔍 Ampliar Ciclos", key="btn_amp_ciclo"): mostrar_grafico_ampliado(fig_c)
         with c2:
             fig_r = go.Figure([go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], name='Rotación', line=dict(color=COLOR_ACT_CORR, width=3))])
             fig_r.update_layout(title="Intensidad de Rotación (Veces)", height=400, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_r, use_container_width=True)
-            if st.button("🔍 Ampliar Rotación"): mostrar_grafico_ampliado(fig_r)
+            if st.button("🔍 Ampliar Rotación", key="btn_amp_rot"): mostrar_grafico_ampliado(fig_r)
         
         insertar_boton_impresion()
 
@@ -301,14 +319,37 @@ if archivo_subido is not None:
         c3.metric("📊 ROE", f"{datos_año['ROE (%)']:.2f}%", delta=get_delta('ROE (%)', '%'))
         c4.metric("📊 Palanca", f"{datos_año['Efecto Palanca']:.2f}x", delta=get_delta('Efecto Palanca', 'x'))
 
+        # RESTAURADO: Se inyectan las dos gráficas de evolución de ventas y EBITDA perdidas
+        st.write("")
+        col_t3a, col_t3b = st.columns(2)
+        with col_t3a:
+            fig_ventas = go.Figure()
+            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color=COLOR_VENTAS, yaxis='y'))
+            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color=COLOR_ACT_CORR, width=3)))
+            fig_ventas.update_layout(title="Ventas vs Margen Neto Final", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_ventas, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Ventas", key="btn_amp_vts_rent", use_container_width=True): mostrar_grafico_ampliado(fig_ventas)
+            
+        with col_t3b:
+            fig_rent = go.Figure()
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_PN))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto', marker_color=COLOR_ACT_NOCORR))
+            fig_rent.update_layout(title="EBITDA vs Resultado Neto Real", barmode='group', height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_rent, use_container_width=True)
+            if st.button("🔍 Ampliar Gráfico de Caja", key="btn_amp_caja_rent", use_container_width=True): mostrar_grafico_ampliado(fig_rent)
+            
+        st.write("---")
+
+        # Gráfico DuPont (Con su respectivo botón de ampliación conectado)
         fig_d = go.Figure()
         fig_d.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], name='ROE %', line=dict(color=COLOR_PN, width=4)))
         fig_d.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], name='Margen %', line=dict(color=COLOR_ACT_CORR, dash='dash')))
         fig_d.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], name='Rotación (Der)', yaxis='y2', line=dict(color=COLOR_PAS_CORR)))
-        fig_d.update_layout(title="Análisis DuPont", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=450, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        fig_d.update_layout(title="🎯 Descomposición DuPont", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=450, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_d, use_container_width=True)
-        if st.button("🔍 Ampliar Análisis DuPont", use_container_width=True): mostrar_grafico_ampliado(fig_d)
+        if st.button("🔍 Ampliar Análisis DuPont", key="btn_amp_dupont", use_container_width=True): mostrar_grafico_ampliado(fig_d)
         
         insertar_boton_impresion()
+        st.info("**💡 Guía de Interpretación DuPont:** Desarma el ROE para revelar la verdadera palanca de la rentabilidad: Eficiencia en Costos (Margen), Eficacia Operativa (Rotación) o Apalancamiento Financiero (Estructura de Fondeo).")
 else:
     st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
