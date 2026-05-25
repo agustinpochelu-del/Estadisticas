@@ -26,12 +26,12 @@ def semaforo(valor, metrica):
         return "🟢" if valor >= 2.0 else "🟡" if valor >= 1.5 else "🔴"
     return "📊"
 
-def calc_delta(val_actual, val_ant, inverso=False):
-    """Calcula la variación para el parámetro delta de st.metric."""
+def calc_delta(val_actual, val_ant, unidad=""):
+    """Calcula la variación estricta a 2 decimales concatenando su unidad de medida."""
     if val_ant is None or pd.isna(val_ant) or pd.isna(val_actual):
         return None
     diff = val_actual - val_ant
-    return float(diff)
+    return f"{diff:+.2f} {unidad}".strip()
 
 # --- FUNCIÓN DE PANTALLA COMPLETA (POP-UP) ---
 @st.dialog("🔍 Vista Ampliada del Análisis", width="large")
@@ -86,20 +86,24 @@ st.markdown(
 # --- BARRA LATERAL (SIDEBAR) ---
 with st.sidebar:
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
-    nombre_empresa, cuit_empresa, domicilio_empresa, cierre_empresa, leyenda_ipc = "Empresa no identificada", "", "", "", ""
+    nombre_empresa, cuit_empresa, domicilio_empresa = "Empresa no identificada", "", ""
+    dia_cierre, mes_cierre = 31, 12
+    leyenda_ipc = ""
 
     if archivo_subido is not None:
         try:
             df_empresa_raw = pd.read_excel(archivo_subido, sheet_name="Datos Empresa", header=None)
             dict_empresa = dict(zip(df_empresa_raw[0].astype(str).str.strip(), df_empresa_raw[1]))
             nombre_empresa = dict_empresa.get("Empresa", "Empresa Registrada")
-            cuit_empresa = dict_empresa.get("CUIT", "")
-            domicilio_empresa = dict_empresa.get("Domicilio", "")
-            raw_cierre = dict_empresa.get("Cierre Ejercicio", "")
-            if pd.api.types.is_datetime64_any_dtype(pd.Series([raw_cierre])) or isinstance(raw_cierre, (pd.Timestamp, np.datetime64)):
-                cierre_empresa = pd.to_datetime(raw_cierre).strftime('%Y-%m-%d')
+            
+            # Lógica robusta para extraer solo día y mes del cierre
+            raw_cierre = dict_empresa.get("Cierre Ejercicio", "31/12")
+            if isinstance(raw_cierre, str) and "/" in raw_cierre:
+                partes = raw_cierre.split("/")
+                dia_cierre, mes_cierre = int(partes[0]), int(partes[1])
             else:
-                cierre_empresa = str(raw_cierre).split(" ")[0] if " " in str(raw_cierre) else str(raw_cierre)
+                fecha_obj = pd.to_datetime(raw_cierre)
+                dia_cierre, mes_cierre = fecha_obj.day, fecha_obj.month
         except Exception: pass
 
         try:
@@ -115,6 +119,11 @@ with st.sidebar:
         df_historico = pd.read_excel(archivo_subido, sheet_name="Balances Historicos")
         df_pivot = df_historico.groupby(['Periodo', 'Cuenta'])['Saldos Ajustados'].sum().unstack(fill_value=0)
         lista_años = sorted(df_pivot.index.tolist())
+
+        # Cálculo dinámico de fechas de balance
+        ultimo_año_base = int(max(lista_años))
+        fecha_ultimo_balance = f"{dia_cierre:02d}/{mes_cierre:02d}/{ultimo_año_base}"
+        fecha_proximo_cierre = f"{dia_cierre:02d}/{mes_cierre:02d}/{ultimo_año_base + 1}"
 
         st.markdown("---")
         año_seleccionado = st.selectbox("Ejercicio Económico:", options=sorted(lista_años, reverse=True), index=0)
@@ -133,7 +142,8 @@ with st.sidebar:
         )
         st.markdown("---")
         if leyenda_ipc: st.caption(f"ℹ️ {leyenda_ipc}")
-        if cierre_empresa: st.caption(f"📅 Cierre: {cierre_empresa}")
+        st.caption(f"📅 **Último balance:** {fecha_ultimo_balance}")
+        st.caption(f"⏳ **Próximo cierre:** {fecha_proximo_cierre}")
 
 # --- CUERPO PRINCIPAL ---
 if archivo_subido is not None:
@@ -154,7 +164,7 @@ if archivo_subido is not None:
         if not cuentas_existing: return pd.Series(0, index=df_datos.index)
         return df_datos[cuentas_existing].sum(axis=1)
 
-    # Variables
+    # Variables y cálculos
     activo_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo Corriente')
     activo_no_corriente = sumar_sub_rubro(df_pivot, df_mapeo, 'Activo No Corriente')
     activo_total = activo_corriente + activo_no_corriente
@@ -208,20 +218,17 @@ if archivo_subido is not None:
     datos_año = df_kpis.loc[año_seleccionado]
     df_filtrado = df_kpis.loc[rango_años[0]:rango_años[1]]
 
-    # Calcular Datos Año Anterior para las flechas (Delta)
-    idx_año = lista_años.index(año_seleccionado)
-    if idx_año > 0: # Como la lista está en orden normal ascendente o descendente? lista_años = sorted(...) -> ascendente.
-        # Espera, selectbox reverse=True. idx_año en lista_años que es ascendente.
-        pass 
-    
-    # Búsqueda segura del año anterior
-    año_ant = None
-    datos_año_ant = None
+    # Búsqueda segura del año anterior para los deltas
+    año_ant, datos_año_ant = None, None
     lista_desc = sorted(lista_años, reverse=True)
     idx_desc = lista_desc.index(año_seleccionado)
     if idx_desc < len(lista_desc) - 1:
         año_ant = lista_desc[idx_desc + 1]
         datos_año_ant = df_kpis.loc[año_ant]
+
+    def get_delta(col_name, unidad=""):
+        if datos_año_ant is None: return None
+        return calc_delta(datos_año[col_name], datos_año_ant[col_name], unidad)
 
     # --- CONTENEDOR DE TÍTULO FIJO / STICKY HEADER ---
     st.markdown(
@@ -238,18 +245,17 @@ if archivo_subido is not None:
     # --- ENRUTADOR DE CONTENIDO ---
     if solapa_seleccionada == "🏠 Resumen Ejecutivo":
         st.subheader(f"📊 Resumen Ejecutivo - Ejercicio {año_seleccionado}")
-        insertar_boton_impresion()
         
         col_p1, col_p2, col_p3 = st.columns(3)
-        col_p1.metric("📊 Volumen de Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=calc_delta(datos_año['Ventas'], datos_año_ant['Ventas'] if datos_año_ant is not None else None), help="Facturación neta total del ejercicio expresada en Millones.")
-        col_p2.metric(f"{semaforo(datos_año['Resultado Neto'], 'Resultado')} Resultado Neto del Ejercicio", f"$ {datos_año['Resultado Neto']:,.2f} M", delta=calc_delta(datos_año['Resultado Neto'], datos_año_ant['Resultado Neto'] if datos_año_ant is not None else None), help="Ganancia final limpia del ejercicio después de impuestos y amortizaciones.")
-        col_p3.metric("📊 Caja Operativa (EBITDA Proxy)", f"$ {datos_año['EBITDA Proxy']:,.2f} M", delta=calc_delta(datos_año['EBITDA Proxy'], datos_año_ant['EBITDA Proxy'] if datos_año_ant is not None else None), help="Capacidad pura del negocio core para generar fondos líquidos aislando amortizaciones e intereses.")
+        col_p1.metric("📊 Volumen de Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=get_delta('Ventas', 'M'), help="Facturación neta total del ejercicio expresada en Millones.")
+        col_p2.metric(f"{semaforo(datos_año['Resultado Neto'], 'Resultado')} Resultado Neto del Ejercicio", f"$ {datos_año['Resultado Neto']:,.2f} M", delta=get_delta('Resultado Neto', 'M'), help="Ganancia final limpia del ejercicio después de impuestos y amortizaciones.")
+        col_p3.metric("📊 Caja Operativa (EBITDA Proxy)", f"$ {datos_año['EBITDA Proxy']:,.2f} M", delta=get_delta('EBITDA Proxy', 'M'), help="Capacidad pura del negocio core para generar fondos líquidos aislando amortizaciones e intereses.")
         
         st.write("")
         col_p4, col_p5, col_p6 = st.columns(3)
-        col_p4.metric(f"{semaforo(datos_año['ROE (%)'], 'ROE')} Rentabilidad s/ Capital (ROE)", f"{datos_año['ROE (%)']:.2f}%", delta=calc_delta(datos_año['ROE (%)'], datos_año_ant['ROE (%)'] if datos_año_ant is not None else None), help="Métrica reina del accionista: rendimiento obtenido por cada peso invertido en el PN.")
-        col_p5.metric(f"{semaforo(datos_año['Margen Neto (%)'], 'Margen Neto')} Margen de Eficiencia Neto", f"{datos_año['Margen Neto (%)']:.2f}%", delta=calc_delta(datos_año['Margen Neto (%)'], datos_año_ant['Margen Neto (%)'] if datos_año_ant is not None else None), help="Porcentaje de cada peso facturado que se convierte en utilidad neta final.")
-        col_p6.metric(f"{semaforo(datos_año['Liquidez Corriente'], 'Liquidez Corriente')} Índice de Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=calc_delta(datos_año['Liquidez Corriente'], datos_año_ant['Liquidez Corriente'] if datos_año_ant is not None else None), help="Relación de cobertura de corto plazo. Valores > 1.0 indican colchón monetario positivo.")
+        col_p4.metric(f"{semaforo(datos_año['ROE (%)'], 'ROE')} Rentabilidad s/ Capital (ROE)", f"{datos_año['ROE (%)']:.2f}%", delta=get_delta('ROE (%)', '%'), help="Métrica reina del accionista: rendimiento obtenido por cada peso invertido en el PN.")
+        col_p5.metric(f"{semaforo(datos_año['Margen Neto (%)'], 'Margen Neto')} Margen de Eficiencia Neto", f"{datos_año['Margen Neto (%)']:.2f}%", delta=get_delta('Margen Neto (%)', '%'), help="Porcentaje de cada peso facturado que se convierte en utilidad neta final.")
+        col_p6.metric(f"{semaforo(datos_año['Liquidez Corriente'], 'Liquidez Corriente')} Índice de Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=get_delta('Liquidez Corriente', 'x'), help="Relación de cobertura de corto plazo. Valores > 1.0 indican colchón monetario positivo.")
         
         st.write("")
         st.markdown("---")
@@ -264,8 +270,7 @@ if archivo_subido is not None:
             val_roe = max(min(datos_año['ROE (%)'] * 2, 100), 0)
             val_end = max(min((2 / (datos_año['Endeudamiento'] + 0.1)) * 50, 100), 0)
             
-            valores_radar = [val_liq, val_solv, val_marg, val_roe, val_end]
-            valores_radar.append(valores_radar[0])
+            valores_radar = [val_liq, val_solv, val_marg, val_roe, val_end, val_liq]
             categorias.append(categorias[0])
             
             fig_radar = go.Figure(go.Scatterpolar(
@@ -275,20 +280,22 @@ if archivo_subido is not None:
             fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], showticklabels=False), angularaxis=dict(tickfont=dict(size=12))), showlegend=False, height=450, margin=dict(t=30, b=20, l=40, r=40))
             st.plotly_chart(fig_radar, use_container_width=True)
 
+        st.write("")
+        insertar_boton_impresion()
         st.info("**💡 Interpretación:** El polígono integra las fuerzas vitales de la firma. Mayor extensión hacia los extremos indica mejor salud global.")
 
     elif solapa_seleccionada == "🏛️ Estructura Patrimonial":
-        insertar_boton_impresion()
         col_a1, col_a2, col_a3 = st.columns(3)
-        col_a1.metric("📊 Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", delta=calc_delta(datos_año['Activo Total'], datos_año_ant['Activo Total'] if datos_año_ant is not None else None))
-        col_a2.metric("🟢 Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", delta=calc_delta(datos_año['Activo Corriente'], datos_año_ant['Activo Corriente'] if datos_año_ant is not None else None))
-        col_a3.metric("🟢 Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", delta=calc_delta(datos_año['Activo No Corriente'], datos_año_ant['Activo No Corriente'] if datos_año_ant is not None else None))
+        col_a1.metric("📊 Activo Total", f"$ {datos_año['Activo Total']:,.2f} M", delta=get_delta('Activo Total', 'M'))
+        col_a2.metric("🟢 Activo Corriente", f"$ {datos_año['Activo Corriente']:,.2f} M", delta=get_delta('Activo Corriente', 'M'))
+        col_a3.metric("🟢 Activo No Corriente", f"$ {datos_año['Activo No Corriente']:,.2f} M", delta=get_delta('Activo No Corriente', 'M'))
         
         st.write("")
         col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("🔵 Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", delta=calc_delta(datos_año['Patrimonio Neto'], datos_año_ant['Patrimonio Neto'] if datos_año_ant is not None else None))
-        col_m2.metric("🟠 Pasivo Total", f"$ {datos_año['Pasivo Total']:,.2f} M", delta=calc_delta(datos_año['Pasivo Total'], datos_año_ant['Pasivo Total'] if datos_año_ant is not None else None), delta_color="inverse")
-        col_m3.metric(f"{semaforo(datos_año['Endeudamiento'], 'Endeudamiento')} Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}", delta=calc_delta(datos_año['Endeudamiento'], datos_año_ant['Endeudamiento'] if datos_año_ant is not None else None), delta_color="inverse")
+        col_m1.metric("🔵 Patrimonio Neto", f"$ {datos_año['Patrimonio Neto']:,.2f} M", delta=get_delta('Patrimonio Neto', 'M'))
+        # Pasivo y Endeudamiento se invierten los colores (Subir deuda es delta negativo visualmente)
+        col_m2.metric("🟠 Pasivo Total", f"$ {datos_año['Pasivo Total']:,.2f} M", delta=get_delta('Pasivo Total', 'M'), delta_color="inverse")
+        col_m3.metric(f"{semaforo(datos_año['Endeudamiento'], 'Endeudamiento')} Índice de Endeudamiento", f"{datos_año['Endeudamiento']:.2f}", delta=get_delta('Endeudamiento', 'x'), delta_color="inverse")
         
         st.write("")
         fig_eq = go.Figure()
@@ -320,18 +327,21 @@ if archivo_subido is not None:
             fig_act.update_layout(title="Evolución de los Activos", barmode='stack', height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_act, use_container_width=True)
 
-    elif solapa_seleccionada == "💧 Liquidez y Solvencia":
+        st.write("")
         insertar_boton_impresion()
+        st.info("**💡 Guía de Interpretación:** La Estructura Patrimonial refleja la partida doble ($A = P + PN$). Permite evaluar si las inversiones de largo plazo están calzadas con fondeo genuino.")
+
+    elif solapa_seleccionada == "💧 Liquidez y Solvencia":
         col_m4, col_m5, col_m6 = st.columns(3)
-        col_m4.metric(f"{semaforo(datos_año['Liquidez Corriente'], 'Liquidez Corriente')} Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=calc_delta(datos_año['Liquidez Corriente'], datos_año_ant['Liquidez Corriente'] if datos_año_ant is not None else None))
-        col_m5.metric(f"{semaforo(datos_año['Prueba Acida'], 'Prueba Acida')} Prueba Ácida", f"{datos_año['Prueba Acida']:.2f}", delta=calc_delta(datos_año['Prueba Acida'], datos_año_ant['Prueba Acida'] if datos_año_ant is not None else None))
-        col_m6.metric("📊 Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M", delta=calc_delta(datos_año['Capital de Trabajo'], datos_año_ant['Capital de Trabajo'] if datos_año_ant is not None else None))
+        col_m4.metric(f"{semaforo(datos_año['Liquidez Corriente'], 'Liquidez Corriente')} Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}", delta=get_delta('Liquidez Corriente', 'x'))
+        col_m5.metric(f"{semaforo(datos_año['Prueba Acida'], 'Prueba Acida')} Prueba Ácida", f"{datos_año['Prueba Acida']:.2f}", delta=get_delta('Prueba Acida', 'x'))
+        col_m6.metric("📊 Capital de Trabajo", f"$ {datos_año['Capital de Trabajo']:,.2f} M", delta=get_delta('Capital de Trabajo', 'M'))
         
         st.write("")
         col_m11, col_m12, col_m13 = st.columns(3)
-        col_m11.metric(f"{semaforo(datos_año['Solvencia'], 'Solvencia')} Índice de Solvencia", f"{datos_año['Solvencia']:.2f}", delta=calc_delta(datos_año['Solvencia'], datos_año_ant['Solvencia'] if datos_año_ant is not None else None))
-        col_m12.metric("📊 Índice de Garantía", f"{datos_año['Garantia']:.2f}", delta=calc_delta(datos_año['Garantia'], datos_año_ant['Garantia'] if datos_año_ant is not None else None))
-        col_m13.metric("📊 Efecto Palanca (GAF)", f"{datos_año['Efecto Palanca']:.2f}x", delta=calc_delta(datos_año['Efecto Palanca'], datos_año_ant['Efecto Palanca'] if datos_año_ant is not None else None))
+        col_m11.metric(f"{semaforo(datos_año['Solvencia'], 'Solvencia')} Índice de Solvencia", f"{datos_año['Solvencia']:.2f}", delta=get_delta('Solvencia', 'x'))
+        col_m12.metric("📊 Índice de Garantía", f"{datos_año['Garantia']:.2f}", delta=get_delta('Garantia', 'x'))
+        col_m13.metric("📊 Efecto Palanca (GAF)", f"{datos_año['Efecto Palanca']:.2f}x", delta=get_delta('Efecto Palanca', 'x'))
         
         st.write("")
         col_t2a, col_t2b = st.columns(2)
@@ -349,12 +359,16 @@ if archivo_subido is not None:
             fig_solv.update_layout(title="Evolución de Solvencia y Respaldo", hovermode="x unified", height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_solv, use_container_width=True)
 
-    elif solapa_seleccionada == "🔄 Ciclo Operativo":
+        st.write("")
         insertar_boton_impresion()
+        st.info("**💡 Guía de Interpretación:** Valores de liquidez > 1.0 indican un colchón monetario positivo. El efecto palanca expone si el uso de deuda externa beneficia o erosiona el retorno del negocio.")
+
+    elif solapa_seleccionada == "🔄 Ciclo Operativo":
         col_r1, col_r2, col_r3 = st.columns(3)
-        col_r1.metric("📊 Plazo Medio Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=calc_delta(datos_año['Dias Cobro'], datos_año_ant['Dias Cobro'] if datos_año_ant is not None else None), delta_color="inverse")
-        col_r2.metric("📊 Días de Stock", f"{datos_año['Dias Inventario']:.0f} días", delta=calc_delta(datos_año['Dias Inventario'], datos_año_ant['Dias Inventario'] if datos_año_ant is not None else None), delta_color="inverse")
-        col_r3.metric("📊 Plazo Medio Pago", f"{datos_año['Dias Pago']:.0f} días", delta=calc_delta(datos_año['Dias Pago'], datos_año_ant['Dias Pago'] if datos_año_ant is not None else None))
+        # Menos días de cobro y stock es mejor (inverse). Más días de pago suele ser mejor (normal).
+        col_r1.metric("📊 Plazo Medio Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'días'), delta_color="inverse")
+        col_r2.metric("📊 Días de Stock", f"{datos_año['Dias Inventario']:.0f} días", delta=get_delta('Dias Inventario', 'días'), delta_color="inverse")
+        col_r3.metric("📊 Plazo Medio Pago", f"{datos_año['Dias Pago']:.0f} días", delta=get_delta('Dias Pago', 'días'))
         
         st.write("")
         col_tr1, col_tr2 = st.columns(2)
@@ -372,13 +386,16 @@ if archivo_subido is not None:
             fig_rot_act.update_layout(title="Intensidad de Rotación (Veces)", hovermode="x unified", height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_rot_act, use_container_width=True)
 
-    elif solapa_seleccionada == "📈 Rentabilidad y Margenes":
+        st.write("")
         insertar_boton_impresion()
+        st.info("**💡 Guía de Interpretación:** Si la suma de *Cobro + Stock* supera con holgura los *Días de Pago*, la firma padece un déficit estructural de giro que consume liquidez genuina.")
+
+    elif solapa_seleccionada == "📈 Rentabilidad y Margenes":
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
-        col_m7.metric("📊 Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=calc_delta(datos_año['Ventas'], datos_año_ant['Ventas'] if datos_año_ant is not None else None))
-        col_m8.metric("📊 Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%", delta=calc_delta(datos_año['Margen EBITDA (%)'], datos_año_ant['Margen EBITDA (%)'] if datos_año_ant is not None else None))
-        col_m9.metric(f"{semaforo(datos_año['Margen Neto (%)'], 'Margen Neto')} Margen Neto", f"{datos_año['Margen Neto (%)']:.2f}%", delta=calc_delta(datos_año['Margen Neto (%)'], datos_año_ant['Margen Neto (%)'] if datos_año_ant is not None else None))
-        col_m10.metric(f"{semaforo(datos_año['ROE (%)'], 'ROE')} ROE Final", f"{datos_año['ROE (%)']:.2f}%", delta=calc_delta(datos_año['ROE (%)'], datos_año_ant['ROE (%)'] if datos_año_ant is not None else None))
+        col_m7.metric("📊 Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=get_delta('Ventas', 'M'))
+        col_m8.metric("📊 Margen EBITDA", f"{datos_año['Margen EBITDA (%)']:.2f}%", delta=get_delta('Margen EBITDA (%)', '%'))
+        col_m9.metric(f"{semaforo(datos_año['Margen Neto (%)'], 'Margen Neto')} Margen Neto", f"{datos_año['Margen Neto (%)']:.2f}%", delta=get_delta('Margen Neto (%)', '%'))
+        col_m10.metric(f"{semaforo(datos_año['ROE (%)'], 'ROE')} ROE Final", f"{datos_año['ROE (%)']:.2f}%", delta=get_delta('ROE (%)', '%'))
         
         st.write("")
         col_t3a, col_t3b = st.columns(2)
@@ -390,7 +407,7 @@ if archivo_subido is not None:
             st.plotly_chart(fig_ventas, use_container_width=True)
         with col_t3b:
             fig_rent = go.Figure()
-            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color='#38BDF8'))
+            fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_VENTAS))
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto', marker_color=COLOR_ACT_NOCORR))
             fig_rent.update_layout(title="EBITDA vs Resultado Neto Real", barmode='group', height=400, legend=config_leyenda_abajo)
             st.plotly_chart(fig_rent, use_container_width=True)
@@ -398,10 +415,15 @@ if archivo_subido is not None:
         st.write("")
         st.markdown("---")
         fig_dupont_rent = go.Figure()
-        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) [Eje Izq]', line=dict(color='#8B5CF6', width=4)))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) [Eje Izq]', line=dict(color=COLOR_PN, width=4)))
         fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%) [Eje Izq]', line=dict(color=COLOR_ACT_CORR, width=2, dash='dash')))
-        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], mode='lines+markers', name='Rotación Activos [Eje Der]', yaxis='y2', line=dict(color=COLOR_PN, width=2)))
+        fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], mode='lines+markers', name='Rotación Activos [Eje Der]', yaxis='y2', line=dict(color=COLOR_PAS_CORR, width=2)))
         fig_dupont_rent.update_layout(title="🎯 Descomposición DuPont", yaxis2=dict(overlaying='y', side='right', showgrid=False), hovermode="x unified", height=450, legend=config_leyenda_abajo)
         st.plotly_chart(fig_dupont_rent, use_container_width=True)
+        
+        st.write("")
+        insertar_boton_impresion()
+        st.info("**💡 Guía de Interpretación DuPont:** Desarma el ROE para revelar la verdadera palanca de la rentabilidad: Eficiencia en Costos (Margen), Eficacia Operativa (Rotación) o Apalancamiento Financiero (Estructura de Fondeo).")
+
 else:
     st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
