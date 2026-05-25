@@ -13,6 +13,33 @@ def mostrar_grafico_ampliado(figura):
     fig_xl.update_layout(height=650)
     st.plotly_chart(fig_xl, use_container_width=True)
 
+# --- FUNCIÓN PARA BOTÓN DE IMPRESIÓN LIMPIA ---
+def insertar_boton_impresion():
+    st.markdown("""
+        <style>
+        /* Reglas que solo se aplican cuando el usuario pone "Imprimir" */
+        @media print {
+            /* Ocultar la barra lateral y el encabezado superior de Streamlit */
+            [data-testid="stSidebar"] { display: none !important; }
+            [data-testid="stHeader"] { display: none !important; }
+            
+            /* Ocultar todos los botones interactivos (incluyendo el de imprimir y los de ampliar gráficos) */
+            button { display: none !important; }
+            .stButton { display: none !important; }
+            
+            /* Ajustar el contenedor principal para que use todo el ancho del papel */
+            .block-container { 
+                max-width: 100% !important; 
+                padding: 1rem !important; 
+            }
+        }
+        </style>
+        
+        <button onclick="window.print()" style="background-color: #f0f2f6; color: #31333F; border: 1px solid #d4d6dd; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; width: 100%; font-weight: 600; text-align: center; margin-bottom: 1rem; transition: background-color 0.3s;">
+            🖨️ Imprimir / Guardar como PDF
+        </button>
+    """, unsafe_allow_html=True)
+
 # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS
 config_leyenda_abajo = dict(
     orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5
