@@ -325,6 +325,7 @@ if archivo_subido is not None:
 
         st.write("")
         insertar_boton_impresion()
+        st.info("""
         **💡 Guía de Interpretación Patrimonial:**
         - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
         - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
