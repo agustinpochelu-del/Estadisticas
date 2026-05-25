@@ -403,8 +403,7 @@ if archivo_subido is not None:
                 title="Ventas vs Margen Neto Final", 
                 yaxis2=dict(overlaying='y', side='right', showgrid=False), 
                 height=400, 
-                legend=config_leyenda_abajo,
-                plot_bgcolor='rgba(240,240,240,0.5)'
+                legend=config_leyenda_abajo)'
             )
             st.plotly_chart(fig_ventas, use_container_width=True)
         with col_t3b:
