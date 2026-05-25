@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Tablero de Control", layout="wide")
 
-# --- 2. ESTÉTICA, CONTRASTE Y CENTRADO DE KPIs (CSS) ---
+# --- 2. ESTÉTICA, CONTRASTE Y EFECTO FLOTANTE DE KPIs (CSS) ---
 st.markdown(
     """
     <style>
@@ -25,26 +25,22 @@ st.markdown(
         border-radius: 0 0 12px 12px;
     }
     
-    /* Cards para métricas y CENTRADO ABSOLUTO (Títulos, Valores y Deltas) */
+    /* Efecto "Flotante" y ancho ajustado para los KPIs */
     div[data-testid="stMetric"] {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        border: 1px solid #E2E8F0;
+        background-color: transparent !important; /* Se funde con el fondo general */
+        border: none !important;                  /* Sin bordes */
+        box-shadow: none !important;              /* Sin sombra */
+        padding: 10px !important;
+        margin: 0 auto !important;                /* Centra el bloque en la columna */
+        width: fit-content !important;            /* Achica el ancho al tamaño del texto */
     }
     
     /* Forzamos a que todos los componentes internos del KPI se centren */
-    div[data-testid="stMetricLabel"],
-    div[data-testid="stMetricValue"],
-    div[data-testid="stMetricDelta"],
     div[data-testid="stMetricLabel"] > div,
     div[data-testid="stMetricValue"] > div,
     div[data-testid="stMetricDelta"] > div {
-        display: flex !important;
         justify-content: center !important;
         text-align: center !important;
-        width: 100% !important;
     }
     </style>
     """, unsafe_allow_html=True
@@ -121,6 +117,7 @@ def insertar_boton_impresion():
                 height: auto !important; 
             }
             
+            /* Devolver el borde en la impresión por prolijidad aunque floten en pantalla */
             div[data-testid="stMetric"] { 
                 border: 1px solid #e6e6e6 !important; 
             }
