@@ -304,9 +304,11 @@ if archivo_subido is not None:
             fig_c.update_layout(title="Ciclo Operativo (Días)", yaxis=dict(range=[0, 365]), height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_c, use_container_width=True)
             if st.button("🔍 Ampliar Ciclos", key="btn_amp_ciclo"): mostrar_grafico_ampliado(fig_c)
-        with c2:
-            fig_r = go.Figure([go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], name='Rotación', line=dict(color=COLOR_ACT_CORR, width=3))])
-            fig_r.update_layout(title="Intensidad de Rotación (Veces)", height=400, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+       with c2:
+            fig_r = go.Figure()
+            fig_r.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color=COLOR_ACT_NOCORR, width=3)))
+            fig_r.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color=COLOR_ACT_CORR, width=2, dash='dash')))
+            fig_r.update_layout(title="Intensidad de Rotación (Veces)", hovermode="x unified", height=400, legend=config_leyenda_abajo, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_r, use_container_width=True)
             if st.button("🔍 Ampliar Rotación", key="btn_amp_rot"): mostrar_grafico_ampliado(fig_r)
         
