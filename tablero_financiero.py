@@ -396,9 +396,16 @@ if archivo_subido is not None:
         col_t3a, col_t3b = st.columns(2)
         with col_t3a:
             fig_ventas = go.Figure()
-            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color=COLOR_VENTAS, yaxis='y'))
-            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color=COLOR_ACT_CORR, width=3)))
-            fig_ventas.update_layout(title="Ventas vs Margen Neto Final", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=400, legend=config_leyenda_abajo)
+            # Uso de colores de alto contraste: Gris oscuro para barras y Rojo vibrante para línea
+            fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color='#4A5568', yaxis='y'))
+            fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#E53E3E', width=4)))
+            fig_ventas.update_layout(
+                title="Ventas vs Margen Neto Final", 
+                yaxis2=dict(overlaying='y', side='right', showgrid=False), 
+                height=400, 
+                legend=config_leyenda_abajo,
+                plot_bgcolor='rgba(240,240,240,0.5)'
+            )
             st.plotly_chart(fig_ventas, use_container_width=True)
         with col_t3b:
             fig_rent = go.Figure()
