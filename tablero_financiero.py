@@ -308,10 +308,15 @@ if archivo_subido is not None:
         fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo No Corriente']], name='Pasivo No Corriente', marker_color=COLOR_PAS_NOCORR, text=[datos_año['Pasivo No Corriente']], texttemplate="<b>Pasivo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
         fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo Corriente']], name='Pasivo Corriente', marker_color=COLOR_PAS_CORR, text=[datos_año['Pasivo Corriente']], texttemplate="<b>Pasivo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
         
-        # Ocultamos grillas y ejes para dejar el mosaico puro
+     # Ocultamos grillas y ejes, y fijamos bargap=0 para pegar los bloques
         fig_eq.update_layout(
-            barmode='stack', bargap=0.1, showlegend=False, height=450, margin=dict(t=20, b=20),
-            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            barmode='stack', 
+            bargap=0,          # <--- ESTO PEGA LAS DOS COLUMNAS
+            showlegend=False, 
+            height=450, 
+            margin=dict(t=20, b=20),
+            plot_bgcolor='rgba(0,0,0,0)', 
+            paper_bgcolor='rgba(0,0,0,0)',
             xaxis=dict(showgrid=False, zeroline=False, showline=False, visible=False),
             yaxis=dict(showgrid=False, zeroline=False, showline=False, showticklabels=False, visible=False)
         )
