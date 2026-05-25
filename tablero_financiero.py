@@ -403,9 +403,10 @@ if archivo_subido is not None:
                 title="Ventas vs Margen Neto Final", 
                 yaxis2=dict(overlaying='y', side='right', showgrid=False), 
                 height=400, 
-                legend=config_leyenda_abajo)'
-            )
+                legend=config_leyenda_abajo)
             st.plotly_chart(fig_ventas, use_container_width=True)
+
+        
         with col_t3b:
             fig_rent = go.Figure()
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_PN))
