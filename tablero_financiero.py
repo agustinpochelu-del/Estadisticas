@@ -25,20 +25,26 @@ st.markdown(
         border-radius: 0 0 12px 12px;
     }
     
-    /* Cards para métricas y CENTRADO ABSOLUTO */
+    /* Cards para métricas y CENTRADO ABSOLUTO (Títulos, Valores y Deltas) */
     div[data-testid="stMetric"] {
         background-color: white;
         padding: 15px;
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         border: 1px solid #E2E8F0;
-        text-align: center !important;
     }
+    
+    /* Forzamos a que todos los componentes internos del KPI se centren */
+    div[data-testid="stMetricLabel"],
+    div[data-testid="stMetricValue"],
+    div[data-testid="stMetricDelta"],
     div[data-testid="stMetricLabel"] > div,
     div[data-testid="stMetricValue"] > div,
     div[data-testid="stMetricDelta"] > div {
+        display: flex !important;
         justify-content: center !important;
         text-align: center !important;
+        width: 100% !important;
     }
     </style>
     """, unsafe_allow_html=True
@@ -447,6 +453,7 @@ if archivo_subido is not None:
         col_t3a, col_t3b = st.columns(2)
         with col_t3a:
             fig_ventas = go.Figure()
+            # Uso de colores de alto contraste: Gris oscuro para barras y Rojo vibrante para línea
             fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color='#4A5568', yaxis='y'))
             fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#E53E3E', width=4)))
             fig_ventas.update_layout(title="Ventas vs Margen Neto Final", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
