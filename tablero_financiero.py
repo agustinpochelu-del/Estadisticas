@@ -245,12 +245,7 @@ if archivo_subido is not None:
     if solapa_seleccionada == "🏠 Visión General":
         st.subheader(f"📊 Resumen Ejecutivo de Gestión - Ejercicio {año_seleccionado}")
 
-        # INSERTAMOS EL BOTÓN ACÁ
-        insertar_boton_impresion()
-        
-        # Fila 1: KPIs Absolutos de Volumen
-        col_p1, col_p2, col_p3 = st.columns(3)
-        # ... (sigue tu código normal)        
+          
         
         # Fila 1: KPIs Absolutos de Volumen
         col_p1, col_p2, col_p3 = st.columns(3)
@@ -317,6 +312,12 @@ if archivo_subido is not None:
         **💡 Interpretación Ejecutiva de la Portada:**
         * **El Radar de Salud:** Este polígono integra las 5 fuerzas vitales de la firma. Cuanto más extendida y simétrica sea la superficie azul hacia los extremos, más sólida y equilibrada es la gestión global. Muescas pronunciadas hacia el centro alertan desvíos específicos en esa área que requieren intervención inmediata.
         """)
+         # INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)     
 
     elif solapa_seleccionada == "🏛️ Estructura Patrimonial":
         col_a1, col_a2, col_a3 = st.columns(3)
