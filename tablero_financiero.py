@@ -244,6 +244,13 @@ if archivo_subido is not None:
     # --- ENRUTADOR DE CONTENIDO ---
     if solapa_seleccionada == "🏠 Visión General":
         st.subheader(f"📊 Resumen Ejecutivo de Gestión - Ejercicio {año_seleccionado}")
+
+        # INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)        
         
         # Fila 1: KPIs Absolutos de Volumen
         col_p1, col_p2, col_p3 = st.columns(3)
@@ -392,6 +399,13 @@ if archivo_subido is not None:
         - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
         """)
 
+    # INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)
+
     elif solapa_seleccionada == "💧 Liquidez y Corto Plazo":
         col_m4, col_m5, col_m6 = st.columns(3)
         col_m4.metric("Liquidez Corriente", f"{datos_año['Liquidez Corriente']:.2f}")
@@ -431,6 +445,13 @@ if archivo_subido is not None:
         - **Efecto Palanca (GAF):** Un índice mayor a 1.0 indica un apalancamiento financiero positivo: el costo del capital de terceros es menor que la rentabilidad operativa del negocio.
         """)
 
+    # INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)
+
     elif solapa_seleccionada == "🔄 Rotaciones y Ciclos":
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("Plazo Medio de Cobranza", f"{datos_año['Dias Cobro']:.0f} días")
@@ -464,6 +485,13 @@ if archivo_subido is not None:
         - **Déficit Estructural de Giro:** Si la suma de *Plazo de Cobro + Días de Stock* excede con holgura los *Días de Pago*, la empresa genera un descalce financiero que consume recursos líquidos propios.
         - **Rotación de Activo Corriente:** Determina la cantidad de veces que el capital operativo "da la vuelta" en el año fiscal para materializar las ventas registradas.
         """)
+
+    # INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)
 
     elif solapa_seleccionada == "📈 Rentabilidad Económica":
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
@@ -506,5 +534,12 @@ if archivo_subido is not None:
         2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
         3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de deudas sobre el capital aportado.
         """)
+
+# INSERTAMOS EL BOTÓN ACÁ
+        insertar_boton_impresion()
+        
+        # Fila 1: KPIs Absolutos de Volumen
+        col_p1, col_p2, col_p3 = st.columns(3)
+        # ... (sigue tu código normal)
 else:
     st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
