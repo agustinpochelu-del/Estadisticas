@@ -178,6 +178,8 @@ if archivo_subido is not None:
         'Margen Neto (%)': (res_neto / ventas.replace(0, pd.NA)) * 100,
         'ROE (%)': (res_neto / pn.replace(0, pd.NA)) * 100,
         'Rotacion Activos': ventas / (act_corr + act_ncorr).replace(0, pd.NA),
+        'Rotacion Activo Total': ventas / (act_corr + act_ncorr).replace(0, pd.NA),       # <--- Restaurado
+        'Rotacion Activo Corriente': ventas / act_corr.replace(0, pd.NA),                 # <--- Restaurado
         'Dias Cobro': (df_pivot.get('creditos comerciales', 0) / ventas.replace(0, pd.NA)) * 365,
         'Dias Inventario': (df_pivot.get('Bienes de cambio', 0) / pd.Series(np.where(df_pivot.get('Costo Mercaderia Vendida', 0)==0, ventas, df_pivot.get('Costo Mercaderia Vendida', 0)), index=df_pivot.index).replace(0, pd.NA)) * 365,
         'Dias Pago': (df_pivot.get('Deudas comerciales', 0) / pd.Series(np.where(df_pivot.get('Costo Mercaderia Vendida', 0)==0, ventas, df_pivot.get('Costo Mercaderia Vendida', 0)), index=df_pivot.index).replace(0, pd.NA)) * 365,
