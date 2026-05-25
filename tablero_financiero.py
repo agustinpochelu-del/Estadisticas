@@ -325,7 +325,10 @@ if archivo_subido is not None:
 
         st.write("")
         insertar_boton_impresion()
-        st.info("**💡 Guía de Interpretación:** La Estructura Patrimonial refleja la partida doble ($A = P + PN$). Permite evaluar si las inversiones de largo plazo están calzadas con fondeo genuino.")
+        **💡 Guía de Interpretación Patrimonial:**
+        - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
+        - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
+        """)
 
     elif solapa_seleccionada == "💧 Liquidez y Solvencia":
         col_m4, col_m5, col_m6 = st.columns(3)
@@ -357,8 +360,14 @@ if archivo_subido is not None:
 
         st.write("")
         insertar_boton_impresion()
-        st.info("**💡 Guía de Interpretación:** Valores de liquidez > 1.0 indican un colchón monetario positivo. El efecto palanca expone si el uso de deuda externa beneficia o erosiona el retorno del negocio.")
+        st.info("""
+        **💡 Guía de Interpretación de Liquidez y Cobertura:**
+        - **Liquidez Corriente:** Capacidad de cobertura de compromisos inmediatos. Valores menores a 1.0 alertan posibles tensiones de caja en el corto plazo.
+        - **Prueba Ácida Filtrada:** Excluye rigurosamente inventarios y créditos fiscales. Mide el verdadero respaldo monetario neto y los créditos de cobranza pura frente al pasivo comercial exigible.
+        - **Efecto Palanca (GAF):** Un índice mayor a 1.0 indica un apalancamiento financiero positivo: el costo del capital de terceros es menor que la rentabilidad operativa del negocio.
+        """)
 
+    
     elif solapa_seleccionada == "🔄 Ciclo Operativo":
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("📊 Plazo Medio Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'días'), delta_color="inverse")
@@ -383,8 +392,12 @@ if archivo_subido is not None:
 
         st.write("")
         insertar_boton_impresion()
-        st.info("**💡 Guía de Interpretación:** Si la suma de *Cobro + Stock* supera con holgura los *Días de Pago*, la firma padece un déficit estructural de giro que consume liquidez genuina.")
-
+        st.info("""
+        **💡 Guía de Interpretación de Ciclos Operativos y Rotación:**
+        - **Déficit Estructural de Giro:** Si la suma de *Plazo de Cobro + Días de Stock* excede con holgura los *Días de Pago*, la empresa genera un descalce financiero que consume recursos líquidos propios.
+        - **Rotación de Activo Corriente:** Determina la cantidad de veces que el capital operativo "da la vuelta" en el año fiscal para materializar las ventas registradas.
+        """)
+        
     elif solapa_seleccionada == "📈 Rentabilidad y Margenes":
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("📊 Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=get_delta('Ventas', 'M'))
@@ -428,4 +441,10 @@ if archivo_subido is not None:
         st.info("**💡 Guía de Interpretación DuPont:** Desarma el ROE para revelar la verdadera palanca de la rentabilidad: Eficiencia en Costos (Margen), Eficacia Operativa (Rotación) o Apalancamiento Financiero (Estructura de Fondeo).")
 
 else:
-    st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
+    st.info("""
+        **💡 Guía de Interpretación del Modelo DuPont:**
+        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
+        1. **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
+        2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
+        3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de deudas sobre el capital aportado.
+        """)
