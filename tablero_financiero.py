@@ -4,86 +4,93 @@ import plotly.graph_objects as go
 import numpy as np
 import streamlit.components.v1 as components
 
-# Configuración de la página
-st.set_page_config(page_title="Tablero de Análisis Integral", layout="wide")
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Tablero de Control", layout="wide")
 
-# --- FUNCIONES AUXILIARES (SEMAFOROS Y DELTAS) ---
-def semaforo(valor, metrica):
-    """Devuelve un emoji de semáforo basado en rangos de salud financiera."""
-    if pd.isna(valor): return "📊"
-    
-    if metrica == 'Liquidez Corriente':
-        return "🟢" if valor >= 1.5 else "🟡" if valor >= 1.0 else "🔴"
-    elif metrica == 'Prueba Acida':
-        return "🟢" if valor >= 1.0 else "🟡" if valor >= 0.8 else "🔴"
-    elif metrica == 'Endeudamiento':
-        return "🟢" if valor <= 1.5 else "🟡" if valor <= 2.5 else "🔴"
-    elif metrica == 'Margen Neto':
-        return "🟢" if valor >= 10 else "🟡" if valor >= 5 else "🔴"
-    elif metrica == 'ROE':
-        return "🟢" if valor >= 15 else "🟡" if valor > 0 else "🔴"
-    elif metrica == 'Solvencia':
-        return "🟢" if valor >= 2.0 else "🟡" if valor >= 1.5 else "🔴"
-    return "📊"
-
-def calc_delta(val_actual, val_ant, unidad=""):
-    """Calcula la variación estricta a 2 decimales concatenando su unidad de medida."""
-    if val_ant is None or pd.isna(val_ant) or pd.isna(val_actual):
-        return None
-    diff = val_actual - val_ant
-    return f"{diff:+.2f} {unidad}".strip()
-
-# --- FUNCIÓN DE PANTALLA COMPLETA (POP-UP) ---
-@st.dialog("🔍 Vista Ampliada del Análisis", width="large")
-def mostrar_grafico_ampliado(figura):
-    fig_xl = go.Figure(figura)
-    fig_xl.update_layout(height=650)
-    st.plotly_chart(fig_xl, use_container_width=True)
-
-# --- FUNCIÓN OPTIMIZADA PARA IMPRESIÓN EJECUTIVA EN A4 HORIZONTAL ---
-def insertar_boton_impresion():
-    st.markdown("""
-        <style>
-        @media print {
-            @page { size: A4 landscape; margin: 15mm 12mm 15mm 12mm; }
-            [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], footer, button, .stButton { display: none !important; }
-            .main, .block-container, div { overflow: visible !important; height: auto !important; width: 100% !important; max-width: 100% !important; padding-top: 0 !important; padding-bottom: 0 !important; }
-            .js-plotly-plot, .plotly { width: 100% !important; height: auto !important; page-break-inside: avoid !important; }
-            div[data-testid="stMetric"] { page-break-inside: avoid !important; background-color: #fafafa !important; border: 1px solid #e6e6e6 !important; padding: 10px !important; border-radius: 6px !important; }
-            .stInfo { page-break-inside: avoid !important; }
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    components.html("""
-        <button onclick="window.parent.print()" style="
-            background-color: #6482A1; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 14px; box-shadow: 0px 2px 4px rgba(0,0,0,0.1); transition: background-color 0.2s;
-        " onmouseover="this.style.backgroundColor='#4F6B8A'" onmouseout="this.style.backgroundColor='#6482A1'">
-            🖨️ Generar Reporte de Impresión / Guardar PDF Ejecutivo
-        </button>
-    """, height=45)
-
-# LEYENDAS Y PALETA CORPORATIVA SUAVE (MUTED PASTELS)
-config_leyenda_abajo = dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5)
-COLOR_PN = '#6482A1'         # Azul Pizarra Suave (Base 1)
-COLOR_VENTAS = '#7A96B1'     # Azul Pizarra Claro (Base 1 alt)
-COLOR_ACT_CORR = '#7D9B8B'   # Verde Salvia Oscuro (Base 2)
-COLOR_PAS_CORR = '#C4A67A'   # Mostaza Apagado / Arena (Base 3)
-COLOR_PAS_NOCORR = '#B67E79' # Rosa Viejo / Terracota Suave (Secundario 1)
-COLOR_ACT_NOCORR = '#A3A09E' # Gris Cálido (Secundario 2)
-
-# --- INYECCIÓN DE CSS PARA CABECERA FLOTANTE FIJA (STICKY HEADER) ---
+# --- 2. ESTÉTICA Y CONTRASTE (CSS) ---
 st.markdown(
     """
     <style>
+    .stApp { background-color: #F8FAFC; }
+    
+    /* Sticky Header con Contraste Oscuro */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-header) {
-        position: sticky; top: 2.875rem; background-color: white; z-index: 999; border-bottom: 1px solid #f0f2f6; padding-bottom: 10px;
+        position: sticky;
+        top: 2.875rem;
+        background-color: #0F172A;
+        z-index: 999;
+        padding: 15px 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border-radius: 0 0 12px 12px;
+    }
+    
+    /* Cards para métricas */
+    div[data-testid="stMetric"] {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #E2E8F0;
     }
     </style>
     """, unsafe_allow_html=True
 )
 
-# --- BARRA LATERAL (SIDEBAR) ---
+# --- 3. PALETA DE COLORES BASE ---
+COLOR_PN = '#6482A1'         # Azul Pizarra
+COLOR_VENTAS = '#7A96B1'     # Azul Claro
+COLOR_ACT_CORR = '#7D9B8B'   # Verde Salvia
+COLOR_PAS_CORR = '#C4A67A'   # Mostaza/Arena
+COLOR_PAS_NOCORR = '#B67E79' # Rosa Viejo/Terracota
+COLOR_ACT_NOCORR = '#A3A09E' # Gris Cálido
+config_leyenda_abajo = dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5)
+
+# --- 4. FUNCIONES DE APOYO ---
+def semaforo(valor, metrica):
+    """Devuelve un emoji de semáforo basado en rangos de salud financiera."""
+    if pd.isna(valor): return "📊"
+    if metrica == 'Liquidez Corriente': return "🟢" if valor >= 1.5 else "🟡" if valor >= 1.0 else "🔴"
+    elif metrica == 'Prueba Acida': return "🟢" if valor >= 1.0 else "🟡" if valor >= 0.8 else "🔴"
+    elif metrica == 'Endeudamiento': return "🟢" if valor <= 1.5 else "🟡" if valor <= 2.5 else "🔴"
+    elif metrica == 'Margen Neto': return "🟢" if valor >= 10 else "🟡" if valor >= 5 else "🔴"
+    elif metrica == 'ROE': return "🟢" if valor >= 15 else "🟡" if valor > 0 else "🔴"
+    elif metrica == 'Solvencia': return "🟢" if valor >= 2.0 else "🟡" if valor >= 1.5 else "🔴"
+    return "📊"
+
+def calc_delta(val_actual, val_ant, unidad=""):
+    """Calcula la variación estricta a 2 decimales concatenando su unidad."""
+    if val_ant is None or pd.isna(val_ant) or pd.isna(val_actual) or val_ant == 0: return None
+    diff = val_actual - val_ant
+    return f"{diff:+.2f} {unidad}".strip()
+
+@st.dialog("🔍 Vista Ampliada del Análisis", width="large")
+def mostrar_grafico_ampliado(figura):
+    fig_xl = go.Figure(figura)
+    fig_xl.update_layout(height=650, paper_bgcolor='white', plot_bgcolor='white')
+    st.plotly_chart(fig_xl, use_container_width=True)
+
+def insertar_boton_impresion():
+    st.write("")
+    st.markdown("""
+        <style>
+        @media print {
+            @page { size: A4 landscape; margin: 15mm 12mm 15mm 12mm; }
+            [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], footer, button, .stButton { display: none !important; }
+            .main, .block-container, div { overflow: visible !important; height: auto !important; width: 100% !important; max-width: 100% !important; padding-top: 0 !important; padding-bottom: 0 !important; background-color: white !important;}
+            .js-plotly-plot, .plotly { width: 100% !important; height: auto !important; page-break-inside: avoid !important; }
+            div[data-testid="stMetric"] { page-break-inside: avoid !important; border: 1px solid #e6e6e6 !important; padding: 10px !important; border-radius: 6px !important; }
+            .stInfo { page-break-inside: avoid !important; }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    components.html("""
+        <button onclick="window.parent.print()" style="
+            background-color: #1E3A8A; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 600; font-size: 14px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+        ">🖨️ Generar Reporte de Impresión / Guardar PDF Ejecutivo</button>
+    """, height=50)
+
+# --- 5. BARRA LATERAL Y CARGA ---
 with st.sidebar:
     archivo_subido = st.file_uploader("Subí el archivo Excel (.xlsx)", type=["xlsx"])
     nombre_empresa, cuit_empresa, domicilio_empresa = "Empresa no identificada", "", ""
@@ -143,7 +150,7 @@ with st.sidebar:
         st.caption(f"📅 **Último balance:** {fecha_ultimo_balance}")
         st.caption(f"⏳ **Próximo cierre:** {fecha_proximo_cierre}")
 
-# --- CUERPO PRINCIPAL ---
+# --- 6. MOTOR DE CÁLCULO Y CUERPO PRINCIPAL ---
 if archivo_subido is not None:
     df_rubros_raw = pd.read_excel(archivo_subido, sheet_name="Rubros Grales", header=None)
     try:
@@ -231,8 +238,8 @@ if archivo_subido is not None:
     st.markdown(
         f"""
         <div class="sticky-header" style="text-align: center;">
-            <h2 style='margin: 0; font-size: 26px; font-weight: bold; color: {COLOR_PN};'>🏢 {nombre_empresa} | Tablero de Control</h2>
-            <p style='margin: 0; color: #666; font-size: 15px;'>{solapa_seleccionada} | Ejercicio Seleccionado: {año_seleccionado}</p>
+            <h2 style='margin: 0; font-size: 26px; font-weight: bold; color: white;'>🏢 {nombre_empresa} | Tablero de Control</h2>
+            <p style='margin: 0; color: #CBD5E1; font-size: 15px;'>{solapa_seleccionada} | Ejercicio Seleccionado: {año_seleccionado}</p>
         </div>
         """, 
         unsafe_allow_html=True
@@ -295,12 +302,19 @@ if archivo_subido is not None:
         
         st.write("")
         fig_eq = go.Figure()
-        fig_eq.add_trace(go.Bar(x=['Activo'], y=[datos_año['Activo No Corriente']], name='Activo No Corriente', marker_color=COLOR_ACT_NOCORR, text=[datos_año['Activo No Corriente']], texttemplate="<b>Activo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
-        fig_eq.add_trace(go.Bar(x=['Activo'], y=[datos_año['Activo Corriente']], name='Activo Corriente', marker_color=COLOR_ACT_CORR, text=[datos_año['Activo Corriente']], texttemplate="<b>Activo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
-        fig_eq.add_trace(go.Bar(x=['Pasivo + PN'], y=[datos_año['Patrimonio Neto']], name='Patrimonio Neto', marker_color=COLOR_PN, text=[datos_año['Patrimonio Neto']], texttemplate="<b>Patrimonio Neto</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
-        fig_eq.add_trace(go.Bar(x=['Pasivo + PN'], y=[datos_año['Pasivo No Corriente']], name='Pasivo No Corriente', marker_color=COLOR_PAS_NOCORR, text=[datos_año['Pasivo No Corriente']], texttemplate="<b>Pasivo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
-        fig_eq.add_trace(go.Bar(x=['Pasivo + PN'], y=[datos_año['Pasivo Corriente']], name='Pasivo Corriente', marker_color=COLOR_PAS_CORR, text=[datos_año['Pasivo Corriente']], texttemplate="<b>Pasivo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
-        fig_eq.update_layout(barmode='stack', bargap=0, showlegend=False, height=420, margin=dict(t=10, b=10), plot_bgcolor='rgba(0,0,0,0)')
+        fig_eq.add_trace(go.Bar(x=['Inversión'], y=[datos_año['Activo No Corriente']], name='Activo No Corriente', marker_color=COLOR_ACT_NOCORR, text=[datos_año['Activo No Corriente']], texttemplate="<b>Activo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
+        fig_eq.add_trace(go.Bar(x=['Inversión'], y=[datos_año['Activo Corriente']], name='Activo Corriente', marker_color=COLOR_ACT_CORR, text=[datos_año['Activo Corriente']], texttemplate="<b>Activo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
+        fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Patrimonio Neto']], name='Patrimonio Neto', marker_color=COLOR_PN, text=[datos_año['Patrimonio Neto']], texttemplate="<b>Patrimonio Neto</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
+        fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo No Corriente']], name='Pasivo No Corriente', marker_color=COLOR_PAS_NOCORR, text=[datos_año['Pasivo No Corriente']], texttemplate="<b>Pasivo No Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
+        fig_eq.add_trace(go.Bar(x=['Fondeo'], y=[datos_año['Pasivo Corriente']], name='Pasivo Corriente', marker_color=COLOR_PAS_CORR, text=[datos_año['Pasivo Corriente']], texttemplate="<b>Pasivo Corriente</b><br>$ %{text:.2f} M", textposition='inside', insidetextanchor='middle'))
+        
+        # Ocultamos grillas y ejes para dejar el mosaico puro
+        fig_eq.update_layout(
+            barmode='stack', bargap=0.1, showlegend=False, height=450, margin=dict(t=20, b=20),
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, zeroline=False, showline=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False, showline=False, showticklabels=False, visible=False)
+        )
         
         col_eq_izq, col_eq_centro, col_eq_der = st.columns([1, 2, 1])
         with col_eq_centro:
@@ -314,22 +328,18 @@ if archivo_subido is not None:
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo Corriente'], name='Pasivo Corto Plazo', marker_color=COLOR_PAS_CORR))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Pasivo No Corriente'], name='Pasivo Largo Plazo', marker_color=COLOR_PAS_NOCORR))
             fig_pas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Patrimonio Neto'], name='Patrimonio Neto', marker_color=COLOR_PN))
-            fig_pas.update_layout(title="Evolución del Pasivo + PN", barmode='stack', height=400, legend=config_leyenda_abajo)
+            fig_pas.update_layout(title="Evolución del Pasivo + PN", barmode='stack', height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_pas, use_container_width=True)
         with col_t1b:
             fig_act = go.Figure()
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo Corriente'], name='Activo Corriente', marker_color=COLOR_ACT_CORR))
             fig_act.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Activo No Corriente'], name='Activo No Corriente', marker_color=COLOR_ACT_NOCORR))
-            fig_act.update_layout(title="Evolución de los Activos", barmode='stack', height=400, legend=config_leyenda_abajo)
+            fig_act.update_layout(title="Evolución de los Activos", barmode='stack', height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_act, use_container_width=True)
 
         st.write("")
         insertar_boton_impresion()
-        st.info("""
-        **💡 Guía de Interpretación Patrimonial:**
-        - **Estructura de Bloques (Ecuación Patrimonial):** Refleja la partida doble ($A = P + PN$). Permite evaluar de un vistazo si las inversiones de largo plazo (Bienes de Uso) están calzadas con fondeo genuino.
-        - **Índice de Endeudamiento (Pasivo / PN):** Evalúa la dependencia financiera de terceros. Mide cuántos pesos de deuda externa tiene la firma por cada peso de capital propio de los socios.
-        """)
+        st.info("**💡 Guía de Interpretación:** La Estructura Patrimonial refleja la partida doble ($A = P + PN$). Permite evaluar si las inversiones de largo plazo están calzadas con fondeo genuino.")
 
     elif solapa_seleccionada == "💧 Liquidez y Solvencia":
         col_m4, col_m5, col_m6 = st.columns(3)
@@ -350,25 +360,19 @@ if archivo_subido is not None:
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Liquidez Corriente'], mode='lines+markers', name='Liquidez Corriente', line=dict(width=3, color=COLOR_ACT_CORR)))
             fig_liq.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Prueba Acida'], mode='lines+markers', name='Prueba Ácida', line=dict(width=3, color=COLOR_PN, dash='dot')))
             fig_liq.add_hline(y=1.0, line_dash="dash", line_color=COLOR_PAS_NOCORR)
-            fig_liq.update_layout(title="Evolución de Índices de Liquidez", hovermode="x unified", height=400, legend=config_leyenda_abajo)
+            fig_liq.update_layout(title="Evolución de Índices de Liquidez", hovermode="x unified", height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_liq, use_container_width=True)
         with col_t2b:
             fig_solv = go.Figure()
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Solvencia'], mode='lines+markers', name='Solvencia', line=dict(width=3, color=COLOR_PN)))
             fig_solv.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Garantia'], mode='lines+markers', name='Garantía', line=dict(width=3, color=COLOR_ACT_NOCORR, dash='dash')))
-            fig_solv.update_layout(title="Evolución de Solvencia y Respaldo", hovermode="x unified", height=400, legend=config_leyenda_abajo)
+            fig_solv.update_layout(title="Evolución de Solvencia y Respaldo", hovermode="x unified", height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_solv, use_container_width=True)
 
         st.write("")
         insertar_boton_impresion()
-        st.info("""
-        **💡 Guía de Interpretación de Liquidez y Cobertura:**
-        - **Liquidez Corriente:** Capacidad de cobertura de compromisos inmediatos. Valores menores a 1.0 alertan posibles tensiones de caja en el corto plazo.
-        - **Prueba Ácida Filtrada:** Excluye rigurosamente inventarios y créditos fiscales. Mide el verdadero respaldo monetario neto y los créditos de cobranza pura frente al pasivo comercial exigible.
-        - **Efecto Palanca (GAF):** Un índice mayor a 1.0 indica un apalancamiento financiero positivo: el costo del capital de terceros es menor que la rentabilidad operativa del negocio.
-        """)
+        st.info("**💡 Guía de Interpretación:** Valores de liquidez > 1.0 indican un colchón monetario positivo. El efecto palanca expone si el uso de deuda externa beneficia o erosiona el retorno del negocio.")
 
-    
     elif solapa_seleccionada == "🔄 Ciclo Operativo":
         col_r1, col_r2, col_r3 = st.columns(3)
         col_r1.metric("📊 Plazo Medio Cobranza", f"{datos_año['Dias Cobro']:.0f} días", delta=get_delta('Dias Cobro', 'días'), delta_color="inverse")
@@ -382,23 +386,19 @@ if archivo_subido is not None:
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Cobro'], mode='lines+markers', name='Plazo Cobro', line=dict(color=COLOR_PN, width=3)))
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Inventario'], mode='lines+markers', name='Plazo Stock', line=dict(color=COLOR_ACT_CORR, width=3)))
             fig_ciclos.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Dias Pago'], mode='lines+markers', name='Plazo Pago', line=dict(color=COLOR_PAS_CORR, width=3, dash='dash')))
-            fig_ciclos.update_layout(title="Evolución del Ciclo Operativo (Días)", yaxis=dict(range=[0, 365], showgrid=True), hovermode="x unified", height=400, legend=config_leyenda_abajo)
+            fig_ciclos.update_layout(title="Evolución del Ciclo Operativo (Días)", yaxis=dict(range=[0, 365], showgrid=True), hovermode="x unified", height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_ciclos, use_container_width=True)
         with col_tr2:
             fig_rot_act = go.Figure()
             fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Total'], mode='lines+markers', name='Rot. Activo Total', line=dict(color=COLOR_ACT_NOCORR, width=3)))
             fig_rot_act.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activo Corriente'], mode='lines+markers', name='Rot. Activo Corriente', line=dict(color=COLOR_ACT_CORR, width=2, dash='dash')))
-            fig_rot_act.update_layout(title="Intensidad de Rotación (Veces)", hovermode="x unified", height=400, legend=config_leyenda_abajo)
+            fig_rot_act.update_layout(title="Intensidad de Rotación (Veces)", hovermode="x unified", height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_rot_act, use_container_width=True)
 
         st.write("")
         insertar_boton_impresion()
-        st.info("""
-        **💡 Guía de Interpretación de Ciclos Operativos y Rotación:**
-        - **Déficit Estructural de Giro:** Si la suma de *Plazo de Cobro + Días de Stock* excede con holgura los *Días de Pago*, la empresa genera un descalce financiero que consume recursos líquidos propios.
-        - **Rotación de Activo Corriente:** Determina la cantidad de veces que el capital operativo "da la vuelta" en el año fiscal para materializar las ventas registradas.
-        """)
-        
+        st.info("**💡 Guía de Interpretación:** Si la suma de *Cobro + Stock* supera con holgura los *Días de Pago*, la firma padece un déficit estructural de giro que consume liquidez genuina.")
+
     elif solapa_seleccionada == "📈 Rentabilidad y Margenes":
         col_m7, col_m8, col_m9, col_m10 = st.columns(4)
         col_m7.metric("📊 Ventas Netas", f"$ {datos_año['Ventas']:,.2f} M", delta=get_delta('Ventas', 'M'))
@@ -413,19 +413,13 @@ if archivo_subido is not None:
             # Uso de colores de alto contraste: Gris oscuro para barras y Rojo vibrante para línea
             fig_ventas.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Ventas'], name='Ventas', marker_color='#4A5568', yaxis='y'))
             fig_ventas.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%)', yaxis='y2', line=dict(color='#E53E3E', width=4)))
-            fig_ventas.update_layout(
-                title="Ventas vs Margen Neto Final", 
-                yaxis2=dict(overlaying='y', side='right', showgrid=False), 
-                height=400, 
-                legend=config_leyenda_abajo)
+            fig_ventas.update_layout(title="Ventas vs Margen Neto Final", yaxis2=dict(overlaying='y', side='right', showgrid=False), height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_ventas, use_container_width=True)
-
-        
         with col_t3b:
             fig_rent = go.Figure()
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['EBITDA Proxy'], name='EBITDA', marker_color=COLOR_PN))
             fig_rent.add_trace(go.Bar(x=df_filtrado.index, y=df_filtrado['Resultado Neto'], name='Resultado Neto', marker_color=COLOR_ACT_CORR))
-            fig_rent.update_layout(title="EBITDA vs Resultado Neto Real", barmode='group', height=400, legend=config_leyenda_abajo)
+            fig_rent.update_layout(title="EBITDA vs Resultado Neto Real", barmode='group', height=400, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_rent, use_container_width=True)
 
         st.write("")
@@ -434,7 +428,7 @@ if archivo_subido is not None:
         fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['ROE (%)'], mode='lines+markers', name='ROE (%) [Eje Izq]', line=dict(color=COLOR_PN, width=4)))
         fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Margen Neto (%)'], mode='lines+markers', name='Margen Neto (%) [Eje Izq]', line=dict(color=COLOR_ACT_CORR, width=2, dash='dash')))
         fig_dupont_rent.add_trace(go.Scatter(x=df_filtrado.index, y=df_filtrado['Rotacion Activos'], mode='lines+markers', name='Rotación Activos [Eje Der]', yaxis='y2', line=dict(color=COLOR_PAS_CORR, width=2)))
-        fig_dupont_rent.update_layout(title="🎯 Descomposición DuPont", yaxis2=dict(overlaying='y', side='right', showgrid=False), hovermode="x unified", height=450, legend=config_leyenda_abajo)
+        fig_dupont_rent.update_layout(title="🎯 Descomposición DuPont", yaxis2=dict(overlaying='y', side='right', showgrid=False), hovermode="x unified", height=450, legend=config_leyenda_abajo, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_dupont_rent, use_container_width=True)
         
         st.write("")
@@ -442,10 +436,4 @@ if archivo_subido is not None:
         st.info("**💡 Guía de Interpretación DuPont:** Desarma el ROE para revelar la verdadera palanca de la rentabilidad: Eficiencia en Costos (Margen), Eficacia Operativa (Rotación) o Apalancamiento Financiero (Estructura de Fondeo).")
 
 else:
-    st.info("""
-        **💡 Guía de Interpretación del Modelo DuPont:**
-        Este esquema desarma estratégicamente el ROE para revelar cuál es la verdadera palanca que está empujando la rentabilidad del accionista, multiplicando tres frentes del negocio:
-        1. **Eficiencia en Costos (Margen Neto):** Cuánto rinde cada peso de venta.
-        2. **Eficacia Operativa (Rotación de Activos):** Cuántas veces se hace girar la estructura de inversión para generar esas ventas.
-        3. **Apalancamiento (Multiplicador del Capital):** Cómo impacta el uso de deudas sobre el capital aportado.
-        """)
+    st.info("👆 Por favor, abrí el panel de la barra lateral izquierda y subí el archivo Excel (.xlsx) para comenzar el análisis.")
