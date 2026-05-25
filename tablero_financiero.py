@@ -13,32 +13,82 @@ def mostrar_grafico_ampliado(figura):
     fig_xl.update_layout(height=650)
     st.plotly_chart(fig_xl, use_container_width=True)
 
-# --- FUNCIÓN PARA BOTÓN DE IMPRESIÓN LIMPIA ---
+import streamlit.components.v1 as components # <--- Asegurate de tener este import arriba
+
+# --- FUNCIÓN OPTIMIZADA PARA IMPRESIÓN EJECUTIVA EN A4 HORIZONTAL ---
 def insertar_boton_impresion():
+    # 1. Inyección de reglas CSS avanzadas para el formato de papel
     st.markdown("""
         <style>
-        /* Reglas que solo se aplican cuando el usuario pone "Imprimir" */
         @media print {
-            /* Ocultar la barra lateral y el encabezado superior de Streamlit */
-            [data-testid="stSidebar"] { display: none !important; }
-            [data-testid="stHeader"] { display: none !important; }
+            /* Forzamos formato A4 Horizontal con márgenes controlados */
+            @page {
+                size: A4 landscape;
+                margin: 15mm 12mm 15mm 12mm;
+            }
             
-            /* Ocultar todos los botones interactivos (incluyendo el de imprimir y los de ampliar gráficos) */
-            button { display: none !important; }
-            .stButton { display: none !important; }
+            /* Ocultamos toda la interfaz interactiva de Streamlit */
+            [data-testid="stSidebar"], 
+            [data-testid="stHeader"], 
+            [data-testid="stToolbar"],
+            footer,
+            button,
+            .stButton { 
+                display: none !important; 
+            }
             
-            /* Ajustar el contenedor principal para que use todo el ancho del papel */
-            .block-container { 
-                max-width: 100% !important; 
-                padding: 1rem !important; 
+            /* Eliminamos barras de scroll y liberamos contenedores */
+            .main, .block-container, div {
+                overflow: visible !important;
+                height: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            
+            /* Obligamos a los gráficos Plotly a ocupar todo el ancho disponible del papel */
+            .js-plotly-plot, .plotly {
+                width: 100% !important;
+                height: auto !important;
+                page-break-inside: avoid !important;
+            }
+            
+            /* Protegemos las tarjetas KPI para que no se partan entre páginas */
+            div[data-testid="stMetric"] {
+                page-break-inside: avoid !important;
+                background-color: #fafafa !important;
+                border: 1px solid #e6e6e6 !important;
+                padding: 10px !important;
+                border-radius: 6px !important;
+            }
+            
+            /* Evitamos que las guías de interpretación queden huérfanas */
+            .stInfo {
+                page-break-inside: avoid !important;
             }
         }
         </style>
-        
-        <button onclick="window.print()" style="background-color: #f0f2f6; color: #31333F; border: 1px solid #d4d6dd; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; width: 100%; font-weight: 600; text-align: center; margin-bottom: 1rem; transition: background-color 0.3s;">
-            🖨️ Imprimir / Guardar como PDF
-        </button>
     """, unsafe_allow_html=True)
+    
+    # 2. Botón encapsulado en un componente con acceso seguro al DOM del navegador
+    components.html("""
+        <button onclick="window.parent.print()" style="
+            background-color: #1E3A8A; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            width: 100%; 
+            font-weight: 600; 
+            font-size: 14px;
+            box-shadow: 0px 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#172554'" onmouseout="this.style.backgroundColor='#1E3A8A'">
+            🖨️ Generar Reporte de Impresión / Guardar PDF Ejecutivo
+        </button>
+    """, height=45)
 
 # ESTRUCTURA REUTILIZABLE PARA LEYENDAS INFERIORES CENTRADAS
 config_leyenda_abajo = dict(
